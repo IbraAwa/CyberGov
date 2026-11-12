@@ -4,11 +4,25 @@ Petit site Flask qui accompagne le CTF : comptes eleves, parcours en 5 missions,
 economie d'indices, score en direct et classement. Pense pour etre **active sur Render
 uniquement pendant le labo**.
 
-## Comptes
+## Modele : sessions -> agences -> eleves
+
+- **Session** = un cours dans une classe : intitule, code mnemonique, 1-2 stacks, date auto.
+- Une session contient jusqu'a **4 agences**. **C'est l'agence qui a le compte** et qui joue.
+- Chaque agence contient jusqu'a **5 eleves** : ce ne sont que des noms (pas de compte),
+  pour savoir qui est dans quelle agence.
+- **Connexion d'une agence** = `code de la session` + `nom de l'agence` + `mot de passe`
+  (un mot + un PIN a 6 chiffres, genere et visible par le prof dans la console).
+
+## Comptes professeur
 
 - Un compte professeur est cree au premier demarrage : **prof / eljefe2026**
-  (change le PIN : connecte-toi, cree un nouveau compte prof, supprime `prof`).
-- Le prof cree les comptes eleves (prenom + PIN, aleatoire si laisse vide) dans la console.
+  (change-le : console -> « Professeurs » -> ajoute un prof, puis supprime `prof` cote base).
+- Tous les profs voient et gerent toutes les sessions.
+
+## Parcours
+
+- Une agence ne peut acceder qu'aux missions **deja debloquees** (jusqu'a sa mission en cours) ;
+  elle peut revenir sur les missions deja faites, mais pas sauter en avant.
 
 ## Bareme (modifiable en haut de `app.py`)
 
@@ -54,7 +68,12 @@ flask --app app run --port 8000
 5. Pour **activer/desactiver** entre les labos : sur Render tu peux **suspendre** le service
    (Settings  ->  Suspend) et le reprendre le jour du labo.
 
-## Reinitialiser une session
+## Reinitialiser
 
-Dans la console prof : bouton **Reset** sur un eleve (efface sa progression et ses indices),
-ou **Suppr** pour supprimer le compte.
+Dans la console prof, sur une agence : **Reset progression** (efface score/indices/flags),
+**Nouveau mdp** (regenere le mot de passe), **Supprimer l'agence**. On peut aussi supprimer
+une session entiere.
+
+> **Note base de donnees :** le modele a change (sessions/agences/eleves). Au premier
+> lancement avec une base vide, tout se cree automatiquement. Une ancienne base `labo.db`
+> (modele par eleve) est incompatible : supprime-la / repars d'un disque vide sur Render.

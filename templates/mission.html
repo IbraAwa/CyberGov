@@ -4,7 +4,11 @@
 <div class="chip">Indices&nbsp; <b>{{ hints_used }}/{{ max_hints }}</b></div>
 <div class="progress">
   {% for i in range(1, nb+1) %}
-    <div class="dot {% if i < (u['current'] or 1) %}done{% elif i == n %}cur{% endif %}">{{ i }}</div>
+    {% if i <= unlocked %}
+      <a class="dot {% if i == n %}cur{% elif i < unlocked %}done{% endif %}" href="{{ url_for('mission', n=i) }}">{{ i }}</a>
+    {% else %}
+      <span class="dot locked" title="Validez la mission precedente pour debloquer">&#128274;</span>
+    {% endif %}
   {% endfor %}
 </div>
 <a class="navlink" href="{{ url_for('classement') }}">Classement</a>

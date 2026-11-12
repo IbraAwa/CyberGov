@@ -10,7 +10,10 @@ BASE_POINTS = 1600          # 16 h
 POINTS_PER_HOUR = 100       # le temps coute 100 pts/h
 HINT_COST = {"leger": 50, "moyen": 125, "fort": 200}
 MAX_HINTS = 6               # nombre total d'indices autorises
-FLAG_BONUS = 75            # chaque flag valide rapporte des points (evite les scores a 0)
+FLAG_BONUS = 75             # chaque flag valide rapporte des points
+
+MAX_AGENCES = 4             # agences par session
+MAX_ELEVES = 5             # eleves par agence
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-change-me")
@@ -189,6 +192,11 @@ ENONCE_GLOBAL = """
 <p>On n'attaque que les systemes prevus pour l'exercice. Bonne chasse, agent.</p>
 """
 
+# mots pour generer les mots de passe d'agence (mot + PIN 6 chiffres)
+MDP_WORDS = ["jaguar", "cobra", "aguila", "sierra", "halcon", "lobo", "tigre",
+             "puma", "zorro", "condor", "toro", "cuervo", "delfin", "bufalo",
+             "coyote", "pantera", "oso", "gavilan", "leon", "tiburon"]
+
 # ============================================================
 #   BASE DE DONNEES
 # ============================================================
@@ -209,27 +217,33 @@ def init_db():
     c = conn.cursor()
     c.executescript("""
     CREATE TABLE IF NOT EXISTS users(
-      id INTEGER PRIMARY KEY, name TEXT UNIQUE, pin TEXT, role TEXT,
-      started_at REAL, finished_at REAL, current INTEGER DEFAULT 0);
+      id INTEGER PRIMARY KEY, name TEXT UNIQUE, pin TEXT, role TEXT);
+    CREATE TABLE IF NOT EXISTS sessions(
+      id INTEGER PRIMARY KEY, code TEXT UNIQUE, title TEXT, stacks TEXT,
+      created_at REAL, created_by INTEGER);
+    CREATE TABLE IF NOT EXISTS agences(
+      id INTEGER PRIMARY KEY, session_id INTEGER, name TEXT, password TEXT,
+      started_at REAL, finished_at REAL, current INTEGER DEFAULT 0,
+      UNIQUE(session_id, name));
+    CREATE TABLE IF NOT EXISTS eleves(
+      id INTEGER PRIMARY KEY, agence_id INTEGER, name TEXT);
     CREATE TABLE IF NOT EXISTS missions(
       num INTEGER PRIMARY KEY, title TEXT, flag TEXT, briefing TEXT,
       hint_leger TEXT, hint_moyen TEXT, hint_fort TEXT, correction TEXT);
     CREATE TABLE IF NOT EXISTS hints(
-      id INTEGER PRIMARY KEY, user_id INTEGER, mission INTEGER, level TEXT, cost INTEGER, ts REAL);
+      id INTEGER PRIMARY KEY, agence_id INTEGER, mission INTEGER, level TEXT, cost INTEGER, ts REAL);
     CREATE TABLE IF NOT EXISTS completions(
-      id INTEGER PRIMARY KEY, user_id INTEGER, mission INTEGER, ts REAL);
+      id INTEGER PRIMARY KEY, agence_id INTEGER, mission INTEGER, ts REAL);
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
     """)
-    # seed missions
     for m in MISSIONS_SEED:
         if not c.execute("SELECT 1 FROM missions WHERE num=?", (m["num"],)).fetchone():
             c.execute("""INSERT INTO missions(num,title,flag,briefing,hint_leger,hint_moyen,hint_fort,correction)
                          VALUES(?,?,?,?,?,?,?,?)""",
                       (m["num"], m["title"], m["flag"], m["briefing"],
                        m["hint_leger"], m["hint_moyen"], m["hint_fort"], m["correction"]))
-    # seed prof bootstrap
     if not c.execute("SELECT 1 FROM users WHERE role='prof'").fetchone():
-        c.execute("INSERT INTO users(name,pin,role,current) VALUES(?,?,?,0)", ("prof", "eljefe2026", "prof"))
+        c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("prof", "eljefe2026", "prof"))
     conn.commit(); conn.close()
 
 with app.app_context():
@@ -240,55 +254,66 @@ NB_MISSIONS = len(MISSIONS_SEED)
 # ============================================================
 #   HELPERS
 # ============================================================
-def current_user():
-    uid = session.get("uid")
-    if not uid:
+def current_prof():
+    if session.get("role") != "prof":
         return None
-    return db().execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    return db().execute("SELECT * FROM users WHERE id=?", (session.get("uid"),)).fetchone()
 
-def login_required(f):
-    @wraps(f)
-    def w(*a, **k):
-        if not current_user():
-            return redirect(url_for("login"))
-        return f(*a, **k)
-    return w
+def current_agence():
+    if session.get("role") != "agence":
+        return None
+    return db().execute("SELECT * FROM agences WHERE id=?", (session.get("aid"),)).fetchone()
 
 def prof_required(f):
     @wraps(f)
     def w(*a, **k):
-        u = current_user()
-        if not u or u["role"] != "prof":
+        if not current_prof():
             abort(403)
         return f(*a, **k)
     return w
 
-def hints_of(uid):
-    return db().execute("SELECT * FROM hints WHERE user_id=?", (uid,)).fetchall()
+def agence_required(f):
+    @wraps(f)
+    def w(*a, **k):
+        if not current_agence():
+            return redirect(url_for("login"))
+        return f(*a, **k)
+    return w
 
-def completions_of(uid):
-    return db().execute("SELECT mission FROM completions WHERE user_id=?", (uid,)).fetchall()
+def hints_of(aid):
+    return db().execute("SELECT * FROM hints WHERE agence_id=?", (aid,)).fetchall()
 
-def compute_score(u):
+def completions_of(aid):
+    return db().execute("SELECT mission FROM completions WHERE agence_id=?", (aid,)).fetchall()
+
+def compute_score(a):
     """Score plancher a 0. 1600 - temps(100/h) - indices + 75/flag."""
-    if not u["started_at"]:
+    if not a["started_at"]:
         return BASE_POINTS
-    end = u["finished_at"] or time.time()
-    elapsed_h = (end - u["started_at"]) / 3600.0
+    end = a["finished_at"] or time.time()
+    elapsed_h = (end - a["started_at"]) / 3600.0
     time_pts = elapsed_h * POINTS_PER_HOUR
-    hint_pts = sum(h["cost"] for h in hints_of(u["id"]))
-    flags = len(completions_of(u["id"]))
+    hint_pts = sum(h["cost"] for h in hints_of(a["id"]))
+    flags = len(completions_of(a["id"]))
     s = BASE_POINTS - time_pts - hint_pts + FLAG_BONUS * flags
     return max(0, round(s))
 
-def hint_points_used(uid):
-    return sum(h["cost"] for h in hints_of(uid))
+def hint_points_used(aid):
+    return sum(h["cost"] for h in hints_of(aid))
 
-def hint_count_used(uid):
-    return len(hints_of(uid))
+def hint_count_used(aid):
+    return len(hints_of(aid))
 
-def random_pin():
-    return "".join(random.choice(string.digits) for _ in range(4))
+def random_pin6():
+    return "".join(random.choice(string.digits) for _ in range(6))
+
+def gen_password():
+    return random.choice(MDP_WORDS) + random_pin6()
+
+def gen_session_code():
+    letters = "".join(random.choice("ABCDEFGHJKLMNPQRSTUVWXYZ") for _ in range(3))
+    digits = "".join(random.choice("23456789") for _ in range(3))
+    return letters + digits
 
 # ============================================================
 #   AUTH
@@ -296,13 +321,29 @@ def random_pin():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        pin = request.form.get("pin", "").strip()
-        u = db().execute("SELECT * FROM users WHERE name=? AND pin=?", (name, pin)).fetchone()
-        if u:
-            session["uid"] = u["id"]
-            return redirect(url_for("admin") if u["role"] == "prof" else url_for("parcours"))
-        flash("Identifiant ou code PIN incorrect.")
+        mode = request.form.get("mode", "agence")
+        if mode == "prof":
+            name = request.form.get("pname", "").strip()
+            pin = request.form.get("ppin", "").strip()
+            u = db().execute("SELECT * FROM users WHERE name=? AND pin=? AND role='prof'",
+                             (name, pin)).fetchone()
+            if u:
+                session.clear()
+                session["role"] = "prof"; session["uid"] = u["id"]
+                return redirect(url_for("admin"))
+            flash("Identifiant professeur ou PIN incorrect.")
+        else:
+            code = request.form.get("code", "").strip().upper()
+            aname = request.form.get("aname", "").strip()
+            pwd = request.form.get("password", "").strip()
+            row = db().execute("""SELECT a.* FROM agences a JOIN sessions s ON a.session_id=s.id
+                                  WHERE s.code=? AND a.name=? AND a.password=?""",
+                               (code, aname, pwd)).fetchone()
+            if row:
+                session.clear()
+                session["role"] = "agence"; session["aid"] = row["id"]
+                return redirect(url_for("parcours"))
+            flash("Code session, nom d'agence ou mot de passe incorrect.")
     return render_template("login.html", title="Connexion")
 
 @app.route("/logout")
@@ -311,70 +352,84 @@ def logout():
     return redirect(url_for("login"))
 
 # ============================================================
-#   PARCOURS ELEVE
+#   PARCOURS AGENCE
 # ============================================================
 @app.route("/")
 def index():
-    u = current_user()
-    if not u:
-        return redirect(url_for("login"))
-    return redirect(url_for("admin") if u["role"] == "prof" else url_for("parcours"))
+    if current_prof():
+        return redirect(url_for("admin"))
+    if current_agence():
+        return redirect(url_for("parcours"))
+    return redirect(url_for("login"))
 
 @app.route("/parcours")
-@login_required
+@agence_required
 def parcours():
-    u = current_user()
-    if u["role"] == "prof":
-        return redirect(url_for("admin"))
-    if not u["started_at"]:
+    a = current_agence()
+    if not a["started_at"]:
         return render_template("enonce.html", title="Operation El Jefe", enonce=ENONCE_GLOBAL)
-    if u["finished_at"]:
+    if a["finished_at"]:
         return redirect(url_for("fin"))
-    return redirect(url_for("mission", n=u["current"] or 1))
+    return redirect(url_for("mission", n=a["current"] or 1))
 
 @app.route("/start", methods=["POST"])
-@login_required
+@agence_required
 def start():
-    u = current_user()
-    if u["role"] != "prof" and not u["started_at"]:
-        db().execute("UPDATE users SET started_at=?, current=1 WHERE id=?", (time.time(), u["id"]))
+    a = current_agence()
+    if not a["started_at"]:
+        db().execute("UPDATE agences SET started_at=?, current=1 WHERE id=?", (time.time(), a["id"]))
         db().commit()
     return redirect(url_for("mission", n=1))
 
 @app.route("/mission/<int:n>", methods=["GET", "POST"])
-@login_required
 def mission(n):
-    u = current_user()
-    if u["role"] == "prof":
-        # apercu prof : acces libre
-        pass
-    else:
-        if not u["started_at"]:
-            return redirect(url_for("parcours"))
-        if n > (u["current"] or 1):
-            return redirect(url_for("mission", n=u["current"] or 1))
+    prof = current_prof()
+    a = current_agence()
+    if not prof and not a:
+        return redirect(url_for("login"))
+
     m = db().execute("SELECT * FROM missions WHERE num=?", (n,)).fetchone()
     if not m:
         abort(404)
-    done = {r["mission"] for r in completions_of(u["id"])}
-    correction_open = (u["role"] == "prof")
+
+    # --- apercu professeur : acces libre, correction ouverte, pas d'action ---
+    if prof:
+        ctx = dict(title=f"Mission {n}", m=m, n=n, nb=NB_MISSIONS,
+                   u={"name": "Apercu prof", "current": NB_MISSIONS},
+                   score=BASE_POINTS, hints_used=0, hint_pts=0, max_hints=MAX_HINTS,
+                   taken=set(), costs=HINT_COST, correction_open=True,
+                   is_done=False, msg=None, preview=True, unlocked=NB_MISSIONS,
+                   started_ts=time.time(), flags_count=0,
+                   base=BASE_POINTS, pph=POINTS_PER_HOUR, bonus=FLAG_BONUS)
+        return render_template("mission.html", **ctx)
+
+    # --- agence ---
+    if not a["started_at"]:
+        return redirect(url_for("parcours"))
+    unlocked = a["current"] or 1
+    if n > unlocked:                       # pas d'acces aux missions non debloquees
+        return redirect(url_for("mission", n=unlocked))
+
+    done = {r["mission"] for r in completions_of(a["id"])}
+    correction_open = False
     msg = None
 
-    if request.method == "POST" and u["role"] != "prof":
+    if request.method == "POST":
         action = request.form.get("action")
         if action == "flag":
             prop = request.form.get("flag", "").strip()
             if prop == m["flag"]:
                 if n not in done:
-                    db().execute("INSERT INTO completions(user_id,mission,ts) VALUES(?,?,?)",
-                                 (u["id"], n, time.time()))
+                    db().execute("INSERT INTO completions(agence_id,mission,ts) VALUES(?,?,?)",
+                                 (a["id"], n, time.time()))
                     done.add(n)
                 if n >= NB_MISSIONS:
-                    db().execute("UPDATE users SET finished_at=?, current=? WHERE id=?",
-                                 (time.time(), NB_MISSIONS, u["id"]))
+                    db().execute("UPDATE agences SET finished_at=?, current=? WHERE id=?",
+                                 (time.time(), NB_MISSIONS, a["id"]))
                     db().commit()
                     return redirect(url_for("fin"))
-                db().execute("UPDATE users SET current=? WHERE id=?", (n + 1, u["id"]))
+                if n + 1 > (a["current"] or 1):
+                    db().execute("UPDATE agences SET current=? WHERE id=?", (n + 1, a["id"]))
                 db().commit()
                 return redirect(url_for("mission", n=n + 1))
             else:
@@ -382,15 +437,13 @@ def mission(n):
         elif action == "hint":
             level = request.form.get("level")
             if level in HINT_COST:
-                already = db().execute("SELECT 1 FROM hints WHERE user_id=? AND mission=? AND level=?",
-                                       (u["id"], n, level)).fetchone()
-                if hint_count_used(u["id"]) >= MAX_HINTS:
+                already = db().execute("SELECT 1 FROM hints WHERE agence_id=? AND mission=? AND level=?",
+                                       (a["id"], n, level)).fetchone()
+                if hint_count_used(a["id"]) >= MAX_HINTS:
                     msg = ("err", "Vous avez utilise vos 6 indices.")
-                elif already:
-                    msg = ("err", "Cet indice est deja debloque.")
-                else:
-                    db().execute("INSERT INTO hints(user_id,mission,level,cost,ts) VALUES(?,?,?,?,?)",
-                                 (u["id"], n, level, HINT_COST[level], time.time()))
+                elif not already:
+                    db().execute("INSERT INTO hints(agence_id,mission,level,cost,ts) VALUES(?,?,?,?,?)",
+                                 (a["id"], n, level, HINT_COST[level], time.time()))
                     db().commit()
             return redirect(url_for("mission", n=n))
         elif action == "correction":
@@ -401,29 +454,27 @@ def mission(n):
                 msg = ("err", "Code incorrect : il faut le flag de cette mission.")
 
     taken = {h["level"] for h in db().execute(
-        "SELECT level FROM hints WHERE user_id=? AND mission=?", (u["id"], n)).fetchall()}
-    ctx = dict(title=f"Mission {n}", m=m, n=n, nb=NB_MISSIONS, u=u,
-               score=compute_score(u), hints_used=hint_count_used(u["id"]),
-               hint_pts=hint_points_used(u["id"]), max_hints=MAX_HINTS,
+        "SELECT level FROM hints WHERE agence_id=? AND mission=?", (a["id"], n)).fetchall()}
+    ctx = dict(title=f"Mission {n}", m=m, n=n, nb=NB_MISSIONS, u=a, unlocked=unlocked,
+               score=compute_score(a), hints_used=hint_count_used(a["id"]),
+               hint_pts=hint_points_used(a["id"]), max_hints=MAX_HINTS,
                taken=taken, costs=HINT_COST, correction_open=correction_open,
-               is_done=(n in done), msg=msg,
-               started_ts=u["started_at"] or time.time(),
+               is_done=(n in done), msg=msg, preview=False,
+               started_ts=a["started_at"] or time.time(),
                flags_count=len(done), base=BASE_POINTS, pph=POINTS_PER_HOUR, bonus=FLAG_BONUS)
     return render_template("mission.html", **ctx)
 
 @app.route("/fin")
-@login_required
+@agence_required
 def fin():
-    u = current_user()
-    return render_template("fin.html", title="Mission terminee", u=u,
-                           score=compute_score(u), nb=NB_MISSIONS,
-                           hints_used=hint_count_used(u["id"]),
-                           flags=len(completions_of(u["id"])))
+    a = current_agence()
+    return render_template("fin.html", title="Mission terminee", u=a,
+                           score=compute_score(a), nb=NB_MISSIONS,
+                           hints_used=hint_count_used(a["id"]),
+                           flags=len(completions_of(a["id"])))
 
-@app.route("/classement")
-@login_required
-def classement():
-    rows = db().execute("SELECT * FROM users WHERE role='eleve'").fetchall()
+def board_for_session(session_id):
+    rows = db().execute("SELECT * FROM agences WHERE session_id=?", (session_id,)).fetchall()
     data = []
     for r in rows:
         data.append(dict(name=r["name"], score=compute_score(r),
@@ -432,7 +483,15 @@ def classement():
                          finished=r["finished_at"] or float("inf"),
                          started=bool(r["started_at"])))
     data.sort(key=lambda x: (-x["score"], x["finished"], x["hints"]))
-    return render_template("classement.html", title="Classement", data=data)
+    return data
+
+@app.route("/classement")
+@agence_required
+def classement():
+    a = current_agence()
+    data = board_for_session(a["session_id"])
+    s = db().execute("SELECT * FROM sessions WHERE id=?", (a["session_id"],)).fetchone()
+    return render_template("classement.html", title="Classement", data=data, sess=s)
 
 # ============================================================
 #   ADMIN (PROF)
@@ -440,48 +499,138 @@ def classement():
 @app.route("/admin")
 @prof_required
 def admin():
-    users = db().execute("SELECT * FROM users ORDER BY role, name").fetchall()
+    sessions_rows = db().execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+    sessions = []
+    for s in sessions_rows:
+        agences = []
+        for ag in db().execute("SELECT * FROM agences WHERE session_id=? ORDER BY name", (s["id"],)).fetchall():
+            eleves = db().execute("SELECT * FROM eleves WHERE agence_id=? ORDER BY id", (ag["id"],)).fetchall()
+            agences.append(dict(row=ag, eleves=eleves,
+                                score=compute_score(ag),
+                                flags=len(completions_of(ag["id"])),
+                                hints=hint_count_used(ag["id"]),
+                                started=bool(ag["started_at"]),
+                                finished=bool(ag["finished_at"])))
+        board = board_for_session(s["id"])
+        sessions.append(dict(row=s, agences=agences, board=board,
+                             nb_agences=len(agences),
+                             nb_eleves=sum(len(x["eleves"]) for x in agences)))
     missions = db().execute("SELECT * FROM missions ORDER BY num").fetchall()
-    board = []
-    for r in db().execute("SELECT * FROM users WHERE role='eleve'").fetchall():
-        board.append(dict(name=r["name"], score=compute_score(r),
-                          flags=len(completions_of(r["id"])), hints=hint_count_used(r["id"]),
-                          finished=r["finished_at"] or float("inf")))
-    board.sort(key=lambda x: (-x["score"], x["finished"]))
-    return render_template("admin.html", title="Espace professeur", users=users,
-                           missions=missions, board=board)
+    profs = db().execute("SELECT * FROM users WHERE role='prof' ORDER BY name").fetchall()
+    return render_template("admin.html", title="Espace professeur",
+                           sessions=sessions, missions=missions, profs=profs,
+                           max_agences=MAX_AGENCES, max_eleves=MAX_ELEVES,
+                           suggest_code=gen_session_code())
 
-@app.route("/admin/create", methods=["POST"])
+@app.route("/admin/session/create", methods=["POST"])
 @prof_required
-def admin_create():
+def admin_session_create():
+    title = request.form.get("title", "").strip()
+    code = request.form.get("code", "").strip().upper()
+    s1 = request.form.get("stack1", "").strip()
+    s2 = request.form.get("stack2", "").strip()
+    stacks = ", ".join([x for x in (s1, s2) if x])
+    if not code:
+        code = gen_session_code()
+    if title:
+        try:
+            db().execute("INSERT INTO sessions(code,title,stacks,created_at,created_by) VALUES(?,?,?,?,?)",
+                         (code, title, stacks, time.time(), current_prof()["id"]))
+            db().commit()
+            flash(f"Session creee : {title} (code {code})")
+        except sqlite3.IntegrityError:
+            flash(f"Le code '{code}' existe deja.")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/session/delete/<int:sid>", methods=["POST"])
+@prof_required
+def admin_session_delete(sid):
+    for ag in db().execute("SELECT id FROM agences WHERE session_id=?", (sid,)).fetchall():
+        aid = ag["id"]
+        db().execute("DELETE FROM hints WHERE agence_id=?", (aid,))
+        db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
+        db().execute("DELETE FROM eleves WHERE agence_id=?", (aid,))
+    db().execute("DELETE FROM agences WHERE session_id=?", (sid,))
+    db().execute("DELETE FROM sessions WHERE id=?", (sid,))
+    db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/agence/create", methods=["POST"])
+@prof_required
+def admin_agence_create():
+    sid = request.form.get("session_id")
     name = request.form.get("name", "").strip()
-    role = request.form.get("role", "eleve")
-    pin = request.form.get("pin", "").strip() or random_pin()
+    n = db().execute("SELECT COUNT(*) c FROM agences WHERE session_id=?", (sid,)).fetchone()["c"]
+    if n >= MAX_AGENCES:
+        flash(f"Maximum {MAX_AGENCES} agences par session.")
+        return redirect(url_for("admin"))
     if name:
         try:
-            db().execute("INSERT INTO users(name,pin,role,current) VALUES(?,?,?,0)", (name, pin, role))
+            db().execute("INSERT INTO agences(session_id,name,password,current) VALUES(?,?,?,0)",
+                         (sid, name, gen_password()))
             db().commit()
-            flash(f"Compte cree : {name} / PIN {pin} ({role})")
+        except sqlite3.IntegrityError:
+            flash(f"Une agence '{name}' existe deja dans cette session.")
+    return redirect(url_for("admin"))
+
+@app.route("/admin/agence/delete/<int:aid>", methods=["POST"])
+@prof_required
+def admin_agence_delete(aid):
+    db().execute("DELETE FROM hints WHERE agence_id=?", (aid,))
+    db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
+    db().execute("DELETE FROM eleves WHERE agence_id=?", (aid,))
+    db().execute("DELETE FROM agences WHERE id=?", (aid,))
+    db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/agence/reset/<int:aid>", methods=["POST"])
+@prof_required
+def admin_agence_reset(aid):
+    db().execute("DELETE FROM hints WHERE agence_id=?", (aid,))
+    db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
+    db().execute("UPDATE agences SET started_at=NULL, finished_at=NULL, current=0 WHERE id=?", (aid,))
+    db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/agence/newpwd/<int:aid>", methods=["POST"])
+@prof_required
+def admin_agence_newpwd(aid):
+    db().execute("UPDATE agences SET password=? WHERE id=?", (gen_password(), aid))
+    db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/eleve/create", methods=["POST"])
+@prof_required
+def admin_eleve_create():
+    aid = request.form.get("agence_id")
+    name = request.form.get("name", "").strip()
+    n = db().execute("SELECT COUNT(*) c FROM eleves WHERE agence_id=?", (aid,)).fetchone()["c"]
+    if n >= MAX_ELEVES:
+        flash(f"Maximum {MAX_ELEVES} eleves par agence.")
+    elif name:
+        db().execute("INSERT INTO eleves(agence_id,name) VALUES(?,?)", (aid, name))
+        db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/eleve/delete/<int:eid>", methods=["POST"])
+@prof_required
+def admin_eleve_delete(eid):
+    db().execute("DELETE FROM eleves WHERE id=?", (eid,))
+    db().commit()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/prof/create", methods=["POST"])
+@prof_required
+def admin_prof_create():
+    name = request.form.get("name", "").strip()
+    pin = request.form.get("pin", "").strip() or random_pin6()
+    if name:
+        try:
+            db().execute("INSERT INTO users(name,pin,role) VALUES(?,?,'prof')", (name, pin))
+            db().commit()
+            flash(f"Professeur cree : {name} / PIN {pin}")
         except sqlite3.IntegrityError:
             flash(f"Le nom '{name}' existe deja.")
-    return redirect(url_for("admin"))
-
-@app.route("/admin/delete/<int:uid>", methods=["POST"])
-@prof_required
-def admin_delete(uid):
-    db().execute("DELETE FROM hints WHERE user_id=?", (uid,))
-    db().execute("DELETE FROM completions WHERE user_id=?", (uid,))
-    db().execute("DELETE FROM users WHERE id=?", (uid,))
-    db().commit()
-    return redirect(url_for("admin"))
-
-@app.route("/admin/reset/<int:uid>", methods=["POST"])
-@prof_required
-def admin_reset(uid):
-    db().execute("DELETE FROM hints WHERE user_id=?", (uid,))
-    db().execute("DELETE FROM completions WHERE user_id=?", (uid,))
-    db().execute("UPDATE users SET started_at=NULL, finished_at=NULL, current=0 WHERE id=?", (uid,))
-    db().commit()
     return redirect(url_for("admin"))
 
 @app.route("/admin/mission/<int:num>", methods=["POST"])

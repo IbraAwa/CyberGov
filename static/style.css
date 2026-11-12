@@ -129,6 +129,9 @@ label{display:block;font-family:'Special Elite',monospace;font-size:12px;letter-
   display:flex;align-items:center;justify-content:center;font-family:'Special Elite',monospace;font-size:12px;color:var(--bone);}
 .dot.done{background:var(--gold);color:#3a2600;border-color:var(--gold);}
 .dot.cur{border-color:var(--redbright);box-shadow:0 0 0 2px rgba(192,19,42,.4);}
+a.dot{text-decoration:none;cursor:pointer;transition:transform .1s;}
+a.dot:hover{transform:translateY(-2px);}
+.dot.locked{background:rgba(20,10,0,.45);border-color:rgba(120,110,95,.5);color:#8a8070;font-size:11px;cursor:not-allowed;}
 
 /* ===== TABLE CLASSEMENT ===== */
 table.board{width:100%;border-collapse:collapse;font-family:Georgia,serif;}
@@ -212,3 +215,44 @@ table.board .sc{font-family:'Special Elite',monospace;color:#7a5a10;font-weight:
 .flag-postit p{font-family:'Caveat',cursive;font-size:19px;line-height:1.2;margin:0 0 12px;}
 .flag-postit input{width:100%;max-width:none;background:#fffdf0;border-color:#d9c24a;}
 @media(max-width:700px){.photo{width:100%;}}
+
+/* ===== v3 : login 2 colonnes + sessions/agences/eleves ===== */
+.login-grid{display:flex;gap:30px;flex-wrap:wrap;align-items:flex-start;justify-content:center;margin-top:50px;}
+
+/* sessions */
+details.sess{border:1px solid #cdb98f;border-radius:10px;background:#fbf6e9;margin:12px 0;padding:0;overflow:hidden;}
+details.sess>summary{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  font-family:'Special Elite',monospace;background:linear-gradient(180deg,#f3ead6,#e9dcbd);}
+details.sess>summary::-webkit-details-marker{display:none;}
+details.sess>summary:before{content:"\25B8";color:var(--red);font-size:15px;transition:transform .15s;}
+details.sess[open]>summary:before{transform:rotate(90deg);}
+.sess-title{font-size:16px;color:#2a1703;letter-spacing:.5px;}
+.sess-code{font-family:'Courier New',monospace;background:#2a2017;color:var(--gold);padding:2px 9px;border-radius:4px;font-size:13px;}
+.sess-stacks{font-size:12px;color:#5a4a1a;background:#e7d7ad;padding:2px 9px;border-radius:10px;}
+.sess-meta{margin-left:auto;font-size:12px;color:var(--mute);}
+.sess-body{padding:14px 18px 18px;}
+.sess-footer{margin-top:16px;border-top:1px dashed #cdb98f;padding-top:12px;}
+
+/* agences */
+details.agence{border:1px solid #d8c7a2;border-radius:8px;background:#fffdf5;margin:10px 0;}
+details.agence>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-family:'Special Elite',monospace;font-size:13px;}
+details.agence>summary::-webkit-details-marker{display:none;}
+details.agence>summary:before{content:"\25B8";color:#b08a2a;transition:transform .15s;}
+details.agence[open]>summary:before{transform:rotate(90deg);}
+.ag-name{font-size:15px;color:#2a1703;text-transform:uppercase;letter-spacing:1px;}
+.ag-cred code{font-family:'Courier New',monospace;background:#2a2017;color:var(--gold);padding:2px 8px;border-radius:4px;}
+.ag-state{color:#5a4a1a;}
+.ag-count{margin-left:auto;color:var(--mute);}
+.agence-body{padding:4px 14px 14px;}
+.ag-actions{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px;}
+
+/* mini tables + ajout */
+.utable.mini td,.utable.mini th{padding:6px 9px;font-size:13px;}
+.utable.eleves{max-width:440px;}
+.add-row td{background:rgba(217,178,74,.08);}
+.eleve-add,.agence-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.eleve-add input,.agence-add input{min-width:180px;}
+.agence-add{margin-top:10px;padding:10px 12px;border:1px dashed #cdb98f;border-radius:8px;background:rgba(217,178,74,.06);}
+.btn.xs{padding:5px 11px;font-size:11px;}
+.btn.ghost.danger{color:var(--red);border-color:rgba(177,18,38,.5);}
+@media(max-width:640px){.login-grid{gap:18px;}.sess-meta,.ag-count{margin-left:0;width:100%;}}

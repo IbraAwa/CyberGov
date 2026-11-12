@@ -6,9 +6,9 @@
 {% block content %}
 <div class="paper tilt">
   <span class="tape tl"></span><span class="tape tr"></span>
-  <div class="eyebrow">Operation El Jefe</div>
-  <h1 class="title">Classement des cellules</h1>
-  <p class="muted">Score = 1600 &minus; temps (100 pts/h) &minus; indices + 75 par flag. A egalite, le premier a tout valider gagne.</p>
+  <div class="eyebrow">Operation El Jefe{% if sess %} &middot; {{ sess['title'] }}{% endif %}</div>
+  <h1 class="title">Classement des agences</h1>
+  <p class="muted">Score = 1600 &minus; temps (100 pts/h) &minus; indices + 75 par flag. A egalite, la premiere a tout valider gagne.</p>
   <table class="board">
     <tr><th>#</th><th>Agent</th><th>Flags</th><th>Indices</th><th>Score</th></tr>
     {% for d in data %}
