@@ -403,10 +403,39 @@ if trouve is None:
  },
 }
 
+# Blocs "pour demarrer" (liens GitHub) ajoutes aux briefings des missions 1 et 2.
+START_BLOCK_M1 = """
+<h3>Pour demarrer</h3>
+<p>Un depot de depart est fourni dans votre langage : recuperez celui qui correspond, il contient le fichier a completer et le <span class="code">coffre.zip</span>.</p>
+<ul>
+<li>Python : <span class="code">https://github.com/IbraAwa/PinFinderExoPython</span></li>
+<li>Java : <span class="code">https://github.com/IbraAwa/PinFinderExoJava</span></li>
+</ul>
+<p>Telechargez le ZIP (bouton vert "Code" &rarr; "Download ZIP") ou clonez avec <span class="code">git clone</span>, puis lancez votre programme depuis le dossier qui contient <span class="code">coffre.zip</span>.</p>"""
+
+START_BLOCK_M2 = """
+<h3>Pour demarrer : lancer l'intranet en local</h3>
+<p>L'intranet du cartel tourne sur votre propre machine. Le code est ici : <span class="code">https://github.com/IbraAwa/app</span></p>
+<ol>
+<li>Installez Python (python.org/downloads ; sur Windows, cochez "Add python.exe to PATH").</li>
+<li>Recuperez le code : bouton vert "Code" &rarr; "Download ZIP", ou <span class="code">git clone https://github.com/IbraAwa/app.git</span></li>
+<li>Dans un terminal, placez-vous dans le dossier : <span class="code">cd app</span></li>
+<li>Installez les dependances : <span class="code">pip install -r requirements.txt</span></li>
+<li>Lancez le site : <span class="code">flask --app app run --port 8000</span></li>
+<li>Ouvrez <span class="code">http://127.0.0.1:8000</span> dans votre navigateur.</li>
+</ol>
+<p>Le <strong>kit de demarrage</strong> (PDF) detaille chaque etape, meme sans connaissance technique. Laissez le terminal ouvert tant que vous jouez : il fait tourner le site.</p>"""
+
+START_BLOCKS = {1: ("PinFinderExo", START_BLOCK_M1), 2: ("github.com/IbraAwa/app", START_BLOCK_M2)}
+
 # fusionne le contenu reel dans le seed (pour les bases neuves)
 for _m in MISSIONS_SEED:
     if _m["num"] in FILLED_CONTENT:
         _m.update(FILLED_CONTENT[_m["num"]])
+    if _m["num"] in START_BLOCKS:
+        marker, block = START_BLOCKS[_m["num"]]
+        if marker not in _m["briefing"]:
+            _m["briefing"] = _m["briefing"] + block
 
 ENONCE_GLOBAL = """
 <p>Quatre services (FBI, CIA, NCIS, DEA) se disputent un dossier : faire tomber <strong>El Jefe</strong>, chef du cartel de Sinaloa. Le premier a reconstituer toute l'operation gagne.</p>
@@ -518,6 +547,11 @@ def init_db():
             placeholder = PH_CORR if col == "correction" else PH_HINT
             if r[i] == placeholder:
                 c.execute(f"UPDATE missions SET {col}=? WHERE num=?", (fields[col], num))
+    # ajoute les liens GitHub aux briefings qui ne les ont pas encore (sans ecraser tes modifs)
+    for num, (marker, block) in START_BLOCKS.items():
+        row = c.execute("SELECT briefing FROM missions WHERE num=?", (num,)).fetchone()
+        if row and row[0] and marker not in row[0]:
+            c.execute("UPDATE missions SET briefing=? WHERE num=?", (row[0] + block, num))
     if not c.execute("SELECT 1 FROM users WHERE role='prof'").fetchone():
         c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("bstorm", "CycyBerFormation2026", "prof"))
     conn.commit(); conn.close()
