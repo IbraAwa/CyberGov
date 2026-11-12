@@ -15,8 +15,8 @@ uniquement pendant le labo**.
 
 ## Comptes professeur
 
-- Un compte professeur est cree au premier demarrage : **prof / eljefe2026**
-  (change-le : console -> « Professeurs » -> ajoute un prof, puis supprime `prof` cote base).
+- Un compte professeur est cree au premier demarrage : **bstorm / CycyBerFormation2026**
+  (tu peux en ajouter d'autres dans la console -> section « Professeurs »).
 - Tous les profs voient et gerent toutes les sessions.
 
 ## Parcours
@@ -45,7 +45,7 @@ uniquement pendant le labo**.
 ```bash
 pip install -r requirements.txt
 flask --app app run --port 8000
-# http://127.0.0.1:8000  (login prof : prof / eljefe2026)
+# http://127.0.0.1:8000  (login prof : bstorm / CycyBerFormation2026)
 ```
 
 ## Deployer sur Render

@@ -519,7 +519,7 @@ def init_db():
             if r[i] == placeholder:
                 c.execute(f"UPDATE missions SET {col}=? WHERE num=?", (fields[col], num))
     if not c.execute("SELECT 1 FROM users WHERE role='prof'").fetchone():
-        c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("prof", "eljefe2026", "prof"))
+        c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("bstorm", "CycyBerFormation2026", "prof"))
     conn.commit(); conn.close()
 
 with app.app_context():
