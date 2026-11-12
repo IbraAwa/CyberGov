@@ -25,36 +25,21 @@
   <div class="coffee" style="width:120px;height:120px;right:24px;bottom:12px;"></div>
 </div>
 
-<!-- SOUMETTRE LE FLAG -->
-<div class="paper" style="max-width:640px;">
-  <span class="pin gold"></span>
-  <h2 class="mt" style="margin-top:4px;">Soumettre le flag</h2>
-  <p class="muted">Quand tu as trouve le flag de cette etape, colle-le ici pour passer a la suite.</p>
-  <form method="post">
-    <input type="hidden" name="action" value="flag">
-    <input class="flag-input" name="flag" placeholder="FLAG{...}" autocomplete="off">
-    <div style="margin-top:16px;"><button class="btn">Valider &rarr;</button></div>
-  </form>
-</div>
-
-<!-- LE TABLEAU D'INDICES -->
-<h2 class="mt" style="color:#2a1703;margin:34px 0 4px;">&#128204; Le tableau d'indices</h2>
+<!-- INDICES EN PHOTOS -->
+<h2 class="mt" style="color:#2a1703;margin:34px 0 4px;">&#128247; Le tableau d'indices</h2>
 <p class="muted" style="font-family:'Special Elite',monospace;font-size:12px;">
   6 indices maximum pour toute l'operation. Chacun coute des points &mdash; reflechis avant de piocher.</p>
-<div class="board-hints">
+<div class="hints-photos">
   {% for lvl, lab in [('leger','Indice leger'),('moyen','Indice moyen'),('fort','Indice fort')] %}
+  <div class="photo {{ lvl }}">
     {% if lvl in taken %}
-      <div class="postit {{ lvl }}">
-        <span class="ptitle">{{ lab }}</span>
-        <div class="hint-full">{{ m['hint_'+lvl]|safe }}</div>
-        <span class="cost">-{{ costs[lvl] }} pts</span>
-      </div>
+      <div class="content">{{ m['hint_'+lvl]|safe }}</div>
     {% else %}
-      <div class="postit {{ lvl }} locked">
-        <span class="ptitle">{{ lab }}</span>
-        <div>Coute <b>{{ costs[lvl] }} points</b></div>
+      <div class="frame">
+        <div class="q">?</div>
+        <div class="cost">{{ costs[lvl] }} points</div>
         {% if hints_used >= max_hints %}
-          <div class="muted" style="margin-top:8px;font-size:14px;">Plus d'indices disponibles</div>
+          <div class="soon">Indices epuises (6/6)</div>
         {% else %}
           <form method="post">
             <input type="hidden" name="action" value="hint">
@@ -64,23 +49,36 @@
         {% endif %}
       </div>
     {% endif %}
+    <div class="cap">{{ lab }}<small>{% if lvl in taken %}-{{ costs[lvl] }} pts utilises{% else %}{{ costs[lvl] }} pts{% endif %}</small></div>
+  </div>
   {% endfor %}
 </div>
 
-<!-- CORRECTION -->
-<div class="paper" style="max-width:760px;margin-top:34px;">
-  <span class="pin r"></span>
-  <h2 class="mt" style="margin-top:4px;">&#128274; Corrige de la mission</h2>
-  {% if correction_open %}
-    <div>{{ m['correction']|safe }}</div>
-  {% else %}
-    <p class="muted">Le corrige se debloque avec le <strong>flag de cette mission</strong> (le code à saisir est le flag lui-même).</p>
+<!-- BAS : CORRIGE + FLAG COTE A COTE -->
+<div class="bottom-row">
+  <div class="fiche">
+    <div class="lab">&#128274; Corrige de la mission</div>
+    {% if correction_open %}
+      <div class="corr-body">{{ m['correction']|safe }}</div>
+    {% else %}
+      <p class="muted">Se debloque avec le <strong>flag de cette mission</strong> (le code a saisir est le flag lui-meme).</p>
+      <form method="post">
+        <input type="hidden" name="action" value="correction">
+        <label>Code (= flag)</label>
+        <input name="code" placeholder="FLAG{...}" autocomplete="off" style="width:100%;max-width:none;">
+        <div style="margin-top:12px;"><button class="btn ghost">Debloquer le corrige</button></div>
+      </form>
+    {% endif %}
+  </div>
+  <div class="flag-postit">
+    <div class="lab">Soumettre le flag</div>
+    <p>Trouve ? Colle-le ici pour passer a la suite &rarr;</p>
     <form method="post">
-      <input type="hidden" name="action" value="correction">
-      <input name="code" placeholder="FLAG{...}" autocomplete="off" style="max-width:360px;">
-      <button class="btn ghost">Debloquer</button>
+      <input type="hidden" name="action" value="flag">
+      <input name="flag" placeholder="FLAG{...}" autocomplete="off">
+      <div style="margin-top:14px;"><button class="btn">Valider &rarr;</button></div>
     </form>
-  {% endif %}
+  </div>
 </div>
 {% endblock %}
 
