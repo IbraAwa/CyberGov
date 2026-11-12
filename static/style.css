@@ -256,3 +256,76 @@ details.agence[open]>summary:before{transform:rotate(90deg);}
 .btn.xs{padding:5px 11px;font-size:11px;}
 .btn.ghost.danger{color:var(--red);border-color:rgba(177,18,38,.5);}
 @media(max-width:640px){.login-grid{gap:18px;}.sess-meta,.ag-count{margin-left:0;width:100%;}}
+
+/* ===== v4 : cartes sessions + murs de post-its (agences / eleves) ===== */
+.hidden{display:none !important;}
+
+/* grille de sessions (dossiers) */
+.cards-grid{display:flex;flex-wrap:wrap;gap:18px;margin-top:6px;}
+.sess-card{position:relative;width:240px;background:linear-gradient(180deg,#f6ecd0,#ead9b4);
+  border:1px solid #cdb98f;border-radius:4px 10px 10px 10px;padding:18px 16px 14px;
+  box-shadow:4px 8px 16px rgba(20,10,0,.3);text-decoration:none;color:#2a1703;display:block;transition:transform .12s,box-shadow .12s;}
+.sess-card:hover{transform:translateY(-3px);box-shadow:4px 12px 22px rgba(20,10,0,.4);}
+.sc-tab{position:absolute;top:-10px;left:14px;width:80px;height:14px;background:#e3cf9f;border:1px solid #cdb98f;border-bottom:none;border-radius:6px 6px 0 0;}
+.sc-open{text-decoration:none;color:inherit;display:block;}
+.sc-code{font-family:'Courier New',monospace;background:#2a2017;color:var(--gold);display:inline-block;padding:2px 9px;border-radius:4px;font-size:12px;margin-bottom:8px;}
+.sc-title{font-family:'Special Elite',monospace;font-size:17px;line-height:1.2;color:#2a1703;}
+.sc-stacks{font-size:12px;color:#5a4a1a;background:#e7d7ad;display:inline-block;padding:1px 9px;border-radius:10px;margin-top:8px;}
+.sc-meta{font-size:12px;color:var(--mute);margin-top:10px;}
+.sc-go{font-family:'Permanent Marker',cursive;color:var(--red);font-size:14px;display:block;margin-top:10px;}
+.sc-del{position:absolute;top:8px;right:8px;margin:0;}
+.x{background:rgba(42,32,23,.1);border:1px solid var(--mute);color:#5a4a1a;border-radius:50%;width:24px;height:24px;line-height:1;cursor:pointer;font-size:15px;padding:0;}
+.x:hover{background:var(--red);color:#fff;border-color:var(--red);}
+
+/* mur de liege pour les post-its */
+.board-wall{position:relative;background:
+   radial-gradient(circle at 30% 20%,rgba(255,255,255,.05),transparent 60%),
+   linear-gradient(135deg,#7a5230,#5f3e22);
+  border-radius:10px;padding:26px 24px;margin-top:10px;box-shadow:inset 0 0 40px rgba(0,0,0,.35);}
+.postit-grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;}
+
+/* post-it agence (4 couleurs) */
+.ag-postit{position:relative;width:234px;min-height:150px;padding:20px 18px 16px;color:#2b2a12;
+  box-shadow:3px 11px 18px rgba(0,0,0,.4);transition:transform .12s;}
+.ag-postit:hover{transform:rotate(0deg) scale(1.02);}
+.ag-postit.c0{background:linear-gradient(165deg,#fff39a,#ffe25a);transform:rotate(-2deg);}
+.ag-postit.c1{background:linear-gradient(165deg,#ffccdf,#ff9fc6);transform:rotate(1.6deg);}
+.ag-postit.c2{background:linear-gradient(165deg,#d6f3ab,#b1e487);transform:rotate(-1.2deg);}
+.ag-postit.c3{background:linear-gradient(165deg,#bfe4fb,#8fc9f2);transform:rotate(2deg);}
+.ag-postit .pin{position:absolute;top:-9px;left:50%;margin-left:-10px;width:20px;height:20px;border-radius:50%;
+  background:radial-gradient(circle at 35% 32%,#ff9a9a,#c0101f 60%,#6e0a14);box-shadow:0 3px 5px rgba(0,0,0,.45);z-index:2;}
+.agp-open{text-decoration:none;color:inherit;display:block;}
+.agp-name{font-family:'Permanent Marker',cursive;font-size:21px;letter-spacing:.5px;text-align:center;}
+.agp-mdp{font-size:13px;text-align:center;margin-top:8px;}
+.agp-mdp code{font-family:'Courier New',monospace;background:rgba(0,0,0,.72);color:#ffe25a;padding:2px 7px;border-radius:4px;font-size:12px;}
+.agp-state{font-family:'Special Elite',monospace;font-size:12px;text-align:center;margin-top:10px;color:#4a4320;}
+.agp-count{font-family:'Special Elite',monospace;font-size:12px;text-align:center;margin-top:8px;color:#6a5a1a;font-weight:bold;}
+.ag-postit .x,.eleve-postit .x{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.14);border-color:rgba(0,0,0,.25);color:#2b2a12;}
+.ag-postit form,.eleve-postit form{margin:0;}
+
+/* post-it eleve (plus petit) */
+.eleve-postit{position:relative;width:150px;min-height:92px;padding:18px 10px 12px;display:flex;align-items:center;justify-content:center;
+  box-shadow:2px 8px 14px rgba(0,0,0,.4);color:#2b2a12;}
+.eleve-postit.c0{background:linear-gradient(165deg,#fff39a,#ffe25a);transform:rotate(-3deg);}
+.eleve-postit.c1{background:linear-gradient(165deg,#ffccdf,#ff9fc6);transform:rotate(2deg);}
+.eleve-postit.c2{background:linear-gradient(165deg,#d6f3ab,#b1e487);transform:rotate(-1.5deg);}
+.eleve-postit.c3{background:linear-gradient(165deg,#bfe4fb,#8fc9f2);transform:rotate(2.5deg);}
+.eleve-postit .pin{position:absolute;top:-8px;left:50%;margin-left:-9px;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 35% 32%,#ffd27a,#c08a10 60%,#6e4f0a);box-shadow:0 3px 5px rgba(0,0,0,.45);}
+.ep-name{font-family:'Caveat','Permanent Marker',cursive;font-size:21px;text-align:center;line-height:1.1;}
+
+/* formulaire d'ajout facon post-it vierge */
+.add-postit{width:200px;min-height:120px;border:2px dashed rgba(255,255,255,.5);border-radius:4px;
+  display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center;padding:16px;background:rgba(255,255,255,.06);}
+.add-postit input{width:100%;text-align:center;}
+.postit-grid.eleves ~ .add-postit,.add-postit{align-self:flex-start;}
+
+/* en-tete agence */
+.ag-head{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;}
+.ag-head-box{background:rgba(42,32,23,.06);border:1px solid #d8c7a2;border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.ag-head-box .lab{font-family:'Special Elite',monospace;font-size:11px;letter-spacing:1px;color:var(--mute);text-transform:uppercase;}
+.ag-pwd{font-family:'Courier New',monospace;background:#2a2017;color:var(--gold);padding:3px 10px;border-radius:4px;font-size:15px;}
+
+/* banniere apercu prof */
+.preview-banner{background:linear-gradient(180deg,#2a2017,#3a2c1c);color:#ffe25a;border:1px solid var(--gold);
+  border-radius:8px;padding:12px 18px;margin-bottom:16px;font-family:'Special Elite',monospace;font-size:13px;letter-spacing:.5px;}

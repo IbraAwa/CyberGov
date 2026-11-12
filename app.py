@@ -1,6 +1,6 @@
 import os, sqlite3, random, string, time
 from functools import wraps
-from flask import (Flask, g, redirect, render_template, request, session, url_for, flash, abort)
+from flask import (Flask, g, redirect, render_template, request, session, url_for, flash, abort, jsonify)
 
 APP_TITLE = "Operation El Jefe"
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "labo.db"))
@@ -192,10 +192,44 @@ ENONCE_GLOBAL = """
 <p>On n'attaque que les systemes prevus pour l'exercice. Bonne chasse, agent.</p>
 """
 
-# mots pour generer les mots de passe d'agence (mot + PIN 6 chiffres)
-MDP_WORDS = ["jaguar", "cobra", "aguila", "sierra", "halcon", "lobo", "tigre",
-             "puma", "zorro", "condor", "toro", "cuervo", "delfin", "bufalo",
-             "coyote", "pantera", "oso", "gavilan", "leon", "tiburon"]
+# 150 mots (mix francais / anglais) pour generer les mots de passe d'agence (mot + PIN 6 chiffres)
+MDP_WORDS = [
+    # animaux FR
+    "jaguar", "cobra", "aigle", "faucon", "loup", "tigre", "puma", "renard", "ours",
+    "lion", "requin", "panthere", "corbeau", "dauphin", "bison", "coyote", "lynx",
+    "hibou", "aigle", "serpent", "guepard", "scorpion", "vautour", "belier", "taureau",
+    # animals EN
+    "wolf", "hawk", "eagle", "shark", "falcon", "raven", "viper", "panther", "cobra",
+    "jackal", "mamba", "lynx", "bear", "fox", "owl", "stallion", "rhino", "bull",
+    "cougar", "osprey", "mantis", "python", "kraken", "phoenix", "dragon",
+    # couleurs FR
+    "rouge", "noir", "argent", "cuivre", "ivoire", "ambre", "pourpre", "indigo",
+    "emeraude", "corail", "cobalt", "bronze", "carmin", "saphir", "onyx",
+    # colors EN
+    "crimson", "scarlet", "silver", "amber", "violet", "cobalt", "ebony", "ivory",
+    "copper", "jade", "onyx", "ruby", "slate", "teal", "gold",
+    # nature FR
+    "sierra", "orage", "tonnerre", "eclair", "brume", "canyon", "desert", "volcan",
+    "mistral", "nord", "sud", "ocean", "dune", "ravin", "falaise", "cascade",
+    # nature EN
+    "storm", "thunder", "canyon", "desert", "summit", "ridge", "frost", "ember",
+    "tide", "dune", "cliff", "blizzard", "mirage", "comet", "nova",
+    # espionnage / noir FR
+    "ombre", "masque", "cipher", "cle", "coffre", "dossier", "alias", "taupe",
+    "complot", "secret", "piste", "indice", "traque", "filature", "planque",
+    # spy / noir EN
+    "shadow", "cipher", "vault", "ghost", "agent", "echo", "delta", "sigma",
+    "vector", "cobweb", "decoy", "relay", "beacon", "nexus", "rogue",
+    # objets / divers FR
+    "lance", "fleche", "dague", "bouclier", "ancre", "marteau", "rouage", "ressort",
+    "balise", "fusee", "sablier", "boussole", "prisme", "miroir", "lanterne",
+    # objects / misc EN
+    "anchor", "arrow", "dagger", "shield", "hammer", "gear", "spring", "rocket",
+    "compass", "prism", "mirror", "lantern", "forge", "circuit", "matrix",
+    # extras pour atteindre 150
+    "sinaloa", "cartel", "jefe", "aguila", "sierra", "halcon", "lobo", "zorro",
+    "diablo", "trueno", "sombra", "fuego", "noche", "plata", "oro",
+]
 
 # ============================================================
 #   BASE DE DONNEES
@@ -406,7 +440,7 @@ def mission(n):
         ctx = dict(title=f"Mission {n}", m=m, n=n, nb=NB_MISSIONS,
                    u={"name": "Apercu prof", "current": NB_MISSIONS},
                    score=BASE_POINTS, hints_used=0, hint_pts=0, max_hints=MAX_HINTS,
-                   taken=set(), costs=HINT_COST, correction_open=True,
+                   taken={"leger", "moyen", "fort"}, costs=HINT_COST, correction_open=True,
                    is_done=False, msg=None, preview=True, unlocked=NB_MISSIONS,
                    started_ts=time.time(), flags_count=0,
                    base=BASE_POINTS, pph=POINTS_PER_HOUR, bonus=FLAG_BONUS)
@@ -505,25 +539,27 @@ def classement():
 # ============================================================
 #   ADMIN (PROF)
 # ============================================================
+def wants_json():
+    return request.headers.get("X-Requested-With") == "fetch"
+
+def session_view(s):
+    agences = db().execute("SELECT id FROM agences WHERE session_id=?", (s["id"],)).fetchall()
+    nb_el = db().execute("""SELECT COUNT(*) c FROM eleves e JOIN agences a ON e.agence_id=a.id
+                            WHERE a.session_id=?""", (s["id"],)).fetchone()["c"]
+    return dict(row=s, nb_agences=len(agences), nb_eleves=nb_el)
+
+def agence_view(ag):
+    eleves = db().execute("SELECT * FROM eleves WHERE agence_id=? ORDER BY id", (ag["id"],)).fetchall()
+    return dict(row=ag, eleves=eleves, nb_eleves=len(eleves),
+                score=compute_score(ag), flags=len(completions_of(ag["id"])),
+                hints=hint_count_used(ag["id"]), started=bool(ag["started_at"]),
+                finished=bool(ag["finished_at"]))
+
 @app.route("/admin")
 @prof_required
 def admin():
-    sessions_rows = db().execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
-    sessions = []
-    for s in sessions_rows:
-        agences = []
-        for ag in db().execute("SELECT * FROM agences WHERE session_id=? ORDER BY name", (s["id"],)).fetchall():
-            eleves = db().execute("SELECT * FROM eleves WHERE agence_id=? ORDER BY id", (ag["id"],)).fetchall()
-            agences.append(dict(row=ag, eleves=eleves,
-                                score=compute_score(ag),
-                                flags=len(completions_of(ag["id"])),
-                                hints=hint_count_used(ag["id"]),
-                                started=bool(ag["started_at"]),
-                                finished=bool(ag["finished_at"])))
-        board = board_for_session(s["id"])
-        sessions.append(dict(row=s, agences=agences, board=board,
-                             nb_agences=len(agences),
-                             nb_eleves=sum(len(x["eleves"]) for x in agences)))
+    rows = db().execute("SELECT * FROM sessions ORDER BY created_at DESC").fetchall()
+    sessions = [session_view(s) for s in rows]
     missions = db().execute("SELECT * FROM missions ORDER BY num").fetchall()
     profs = db().execute("SELECT * FROM users WHERE role='prof' ORDER BY name").fetchall()
     return render_template("admin.html", title="Espace professeur",
@@ -531,38 +567,75 @@ def admin():
                            max_agences=MAX_AGENCES, max_eleves=MAX_ELEVES,
                            suggest_code=gen_session_code())
 
+@app.route("/admin/session/<int:sid>")
+@prof_required
+def session_detail(sid):
+    s = db().execute("SELECT * FROM sessions WHERE id=?", (sid,)).fetchone()
+    if not s:
+        abort(404)
+    rows = db().execute("SELECT * FROM agences WHERE session_id=? ORDER BY id", (sid,)).fetchall()
+    agences = [agence_view(a) for a in rows]
+    board = board_for_session(sid)
+    return render_template("session.html", title=s["title"], sess=s, agences=agences,
+                           board=board, max_agences=MAX_AGENCES, max_eleves=MAX_ELEVES)
+
+@app.route("/admin/agence/<int:aid>")
+@prof_required
+def agence_detail(aid):
+    ag = db().execute("SELECT * FROM agences WHERE id=?", (aid,)).fetchone()
+    if not ag:
+        abort(404)
+    s = db().execute("SELECT * FROM sessions WHERE id=?", (ag["session_id"],)).fetchone()
+    return render_template("agence.html", title=ag["name"], sess=s,
+                           ag=agence_view(ag), max_eleves=MAX_ELEVES)
+
+def build_session_code(mnemonic, stacks_list):
+    """Code de connexion = 1 LETTRE au hasard + code mnemonique + 1 stack tiree au hasard."""
+    import re
+    mnemonic = re.sub(r"[^A-Z0-9]", "", (mnemonic or "").upper())
+    if not mnemonic:
+        mnemonic = re.sub(r"[^A-Z0-9]", "", gen_session_code())
+    stack = ""
+    if stacks_list:
+        stack = re.sub(r"[^A-Z0-9]", "", random.choice(stacks_list).upper())
+    letter = random.choice(string.ascii_uppercase)
+    return letter + mnemonic + stack
+
 @app.route("/admin/session/create", methods=["POST"])
 @prof_required
 def admin_session_create():
     title = request.form.get("title", "").strip()
-    code = request.form.get("code", "").strip().upper()
+    mnemonic = request.form.get("code", "").strip()
     s1 = request.form.get("stack1", "").strip()
     s2 = request.form.get("stack2", "").strip()
-    stacks = ", ".join([x for x in (s1, s2) if x])
-    if not code:
-        code = gen_session_code()
-    if title:
+    stacks_list = [x for x in (s1, s2) if x]
+    stacks = ", ".join(stacks_list)
+    if not title:
+        if wants_json():
+            return jsonify(ok=False, error="Intitule requis."), 400
+        return redirect(url_for("admin"))
+    s = None
+    for _ in range(6):   # regenere la lettre en cas de collision
+        code = build_session_code(mnemonic, stacks_list)
         try:
-            db().execute("INSERT INTO sessions(code,title,stacks,created_at,created_by) VALUES(?,?,?,?,?)",
-                         (code, title, stacks, time.time(), current_prof()["id"]))
+            cur = db().execute("INSERT INTO sessions(code,title,stacks,created_at,created_by) VALUES(?,?,?,?,?)",
+                               (code, title, stacks, time.time(), current_prof()["id"]))
             db().commit()
-            flash(f"Session creee : {title} (code {code})")
+            s = db().execute("SELECT * FROM sessions WHERE id=?", (cur.lastrowid,)).fetchone()
+            break
         except sqlite3.IntegrityError:
-            flash(f"Le code '{code}' existe deja.")
+            continue
+    if s is None:
+        if wants_json():
+            return jsonify(ok=False, error="Impossible de generer un code unique, reessaie."), 400
+        flash("Impossible de generer un code unique.")
+        return redirect(url_for("admin"))
+    if wants_json():
+        html = render_template("_session_card.html", s=session_view(s))
+        return jsonify(ok=True, html=html)
     return redirect(url_for("admin"))
 
-@app.route("/admin/session/delete/<int:sid>", methods=["POST"])
-@prof_required
-def admin_session_delete(sid):
-    for ag in db().execute("SELECT id FROM agences WHERE session_id=?", (sid,)).fetchall():
-        aid = ag["id"]
-        db().execute("DELETE FROM hints WHERE agence_id=?", (aid,))
-        db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
-        db().execute("DELETE FROM eleves WHERE agence_id=?", (aid,))
-    db().execute("DELETE FROM agences WHERE session_id=?", (sid,))
-    db().execute("DELETE FROM sessions WHERE id=?", (sid,))
-    db().commit()
-    return redirect(url_for("admin"))
+# Suppression de session volontairement non implementee : une session ne peut pas etre supprimee.
 
 @app.route("/admin/agence/create", methods=["POST"])
 @prof_required
@@ -571,26 +644,40 @@ def admin_agence_create():
     name = request.form.get("name", "").strip()
     n = db().execute("SELECT COUNT(*) c FROM agences WHERE session_id=?", (sid,)).fetchone()["c"]
     if n >= MAX_AGENCES:
-        flash(f"Maximum {MAX_AGENCES} agences par session.")
-        return redirect(url_for("admin"))
-    if name:
-        try:
-            db().execute("INSERT INTO agences(session_id,name,password,current) VALUES(?,?,?,0)",
-                         (sid, name, gen_password()))
-            db().commit()
-        except sqlite3.IntegrityError:
-            flash(f"Une agence '{name}' existe deja dans cette session.")
-    return redirect(url_for("admin"))
+        if wants_json():
+            return jsonify(ok=False, error=f"Maximum {MAX_AGENCES} agences."), 400
+        return redirect(url_for("session_detail", sid=sid))
+    if not name:
+        if wants_json():
+            return jsonify(ok=False, error="Nom requis."), 400
+        return redirect(url_for("session_detail", sid=sid))
+    try:
+        cur = db().execute("INSERT INTO agences(session_id,name,password,current) VALUES(?,?,?,0)",
+                           (sid, name, gen_password()))
+        db().commit()
+        ag = db().execute("SELECT * FROM agences WHERE id=?", (cur.lastrowid,)).fetchone()
+    except sqlite3.IntegrityError:
+        if wants_json():
+            return jsonify(ok=False, error=f"L'agence '{name}' existe deja."), 400
+        flash(f"Une agence '{name}' existe deja dans cette session.")
+        return redirect(url_for("session_detail", sid=sid))
+    if wants_json():
+        html = render_template("_agence_card.html", a=agence_view(ag), cidx=n % 4, max_eleves=MAX_ELEVES)
+        return jsonify(ok=True, html=html)
+    return redirect(url_for("session_detail", sid=sid))
 
 @app.route("/admin/agence/delete/<int:aid>", methods=["POST"])
 @prof_required
 def admin_agence_delete(aid):
+    sid = db().execute("SELECT session_id FROM agences WHERE id=?", (aid,)).fetchone()
     db().execute("DELETE FROM hints WHERE agence_id=?", (aid,))
     db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
     db().execute("DELETE FROM eleves WHERE agence_id=?", (aid,))
     db().execute("DELETE FROM agences WHERE id=?", (aid,))
     db().commit()
-    return redirect(url_for("admin"))
+    if wants_json():
+        return jsonify(ok=True)
+    return redirect(url_for("session_detail", sid=sid["session_id"]) if sid else url_for("admin"))
 
 @app.route("/admin/agence/reset/<int:aid>", methods=["POST"])
 @prof_required
@@ -599,14 +686,21 @@ def admin_agence_reset(aid):
     db().execute("DELETE FROM completions WHERE agence_id=?", (aid,))
     db().execute("UPDATE agences SET started_at=NULL, finished_at=NULL, current=0 WHERE id=?", (aid,))
     db().commit()
-    return redirect(url_for("admin"))
+    if wants_json():
+        return jsonify(ok=True)
+    ag = db().execute("SELECT session_id FROM agences WHERE id=?", (aid,)).fetchone()
+    return redirect(url_for("session_detail", sid=ag["session_id"]) if ag else url_for("admin"))
 
 @app.route("/admin/agence/newpwd/<int:aid>", methods=["POST"])
 @prof_required
 def admin_agence_newpwd(aid):
-    db().execute("UPDATE agences SET password=? WHERE id=?", (gen_password(), aid))
+    pwd = gen_password()
+    db().execute("UPDATE agences SET password=? WHERE id=?", (pwd, aid))
     db().commit()
-    return redirect(url_for("admin"))
+    if wants_json():
+        return jsonify(ok=True, password=pwd)
+    ag = db().execute("SELECT session_id FROM agences WHERE id=?", (aid,)).fetchone()
+    return redirect(url_for("session_detail", sid=ag["session_id"]) if ag else url_for("admin"))
 
 @app.route("/admin/eleve/create", methods=["POST"])
 @prof_required
@@ -615,18 +709,30 @@ def admin_eleve_create():
     name = request.form.get("name", "").strip()
     n = db().execute("SELECT COUNT(*) c FROM eleves WHERE agence_id=?", (aid,)).fetchone()["c"]
     if n >= MAX_ELEVES:
-        flash(f"Maximum {MAX_ELEVES} eleves par agence.")
-    elif name:
-        db().execute("INSERT INTO eleves(agence_id,name) VALUES(?,?)", (aid, name))
-        db().commit()
-    return redirect(url_for("admin"))
+        if wants_json():
+            return jsonify(ok=False, error=f"Maximum {MAX_ELEVES} eleves."), 400
+        return redirect(url_for("agence_detail", aid=aid))
+    if not name:
+        if wants_json():
+            return jsonify(ok=False, error="Nom requis."), 400
+        return redirect(url_for("agence_detail", aid=aid))
+    cur = db().execute("INSERT INTO eleves(agence_id,name) VALUES(?,?)", (aid, name))
+    db().commit()
+    if wants_json():
+        e = db().execute("SELECT * FROM eleves WHERE id=?", (cur.lastrowid,)).fetchone()
+        html = render_template("_eleve_card.html", e=e, cidx=n % 4)
+        return jsonify(ok=True, html=html, count=n + 1)
+    return redirect(url_for("agence_detail", aid=aid))
 
 @app.route("/admin/eleve/delete/<int:eid>", methods=["POST"])
 @prof_required
 def admin_eleve_delete(eid):
+    row = db().execute("SELECT agence_id FROM eleves WHERE id=?", (eid,)).fetchone()
     db().execute("DELETE FROM eleves WHERE id=?", (eid,))
     db().commit()
-    return redirect(url_for("admin"))
+    if wants_json():
+        return jsonify(ok=True)
+    return redirect(url_for("agence_detail", aid=row["agence_id"]) if row else url_for("admin"))
 
 @app.route("/admin/prof/create", methods=["POST"])
 @prof_required

@@ -6,13 +6,14 @@
 <div class="paper" style="padding:22px 28px;">
   <div class="eyebrow">Espace reserve</div>
   <h1 class="title" style="font-size:28px;">Console professeur</h1>
-  <p class="muted">Cree une session par cours/classe, ajoute ses agences (max {{ max_agences }}) et les eleves dans chaque agence (max {{ max_eleves }}). C'est l'agence qui se connecte.</p>
+  <p class="muted">Une session = un cours dans une classe. Clique une session pour gerer ses agences (max {{ max_agences }}) et leurs eleves (max {{ max_eleves }}). C'est l'agence qui se connecte.</p>
 </div>
 
 <!-- CREER UNE SESSION -->
 <div class="admin-card">
   <h3>Nouvelle session</h3>
-  <form method="post" action="{{ url_for('admin_session_create') }}">
+  <form data-ajax-add data-target="#sessions-grid" data-prepend data-hide-empty="#sess-empty"
+        method="post" action="{{ url_for('admin_session_create') }}">
     <div class="row">
       <div style="flex:2;"><label>Intitule du cours</label><input type="text" name="title" placeholder="ex. Python - Data 2026" required></div>
       <div><label>Code mnemonique</label><input type="text" name="code" value="{{ suggest_code }}" style="text-transform:uppercase;"></div>
@@ -20,93 +21,17 @@
       <div><label>Stack 2 (option)</label><input type="text" name="stack2" placeholder="ex. Angular"></div>
       <div style="flex:0;"><button class="btn">Creer</button></div>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:6px;">La date de creation est enregistree automatiquement. Code modifiable, 2 stacks max.</p>
+    <p class="muted" style="font-size:12px;margin-top:6px;">Date de creation enregistree automatiquement. 2 stacks max.</p>
   </form>
 </div>
 
 <!-- SESSIONS -->
 <div class="admin-card">
-  <h3>Sessions ({{ sessions|length }})</h3>
-  {% if not sessions %}<p class="muted">Aucune session pour le moment.</p>{% endif %}
-
-  {% for s in sessions %}
-  <details class="sess">
-    <summary>
-      <span class="sess-title">{{ s.row['title'] }}</span>
-      <span class="sess-code">code {{ s.row['code'] }}</span>
-      {% if s.row['stacks'] %}<span class="sess-stacks">{{ s.row['stacks'] }}</span>{% endif %}
-      <span class="sess-meta">{{ s.nb_agences }}/{{ max_agences }} agences &middot; {{ s.nb_eleves }} eleves</span>
-    </summary>
-
-    <div class="sess-body">
-      <!-- classement de la session -->
-      {% if s.board %}
-      <table class="utable mini">
-        <tr><th>#</th><th>Agence</th><th>Flags</th><th>Indices</th><th>Score</th></tr>
-        {% for d in s.board %}
-        <tr><td>{{ loop.index }}</td><td>{{ d['name'] }}</td><td>{{ d['flags'] }}</td><td>{{ d['hints'] }}</td><td class="sc">{{ d['score'] }}</td></tr>
-        {% endfor %}
-      </table>
-      {% endif %}
-
-      <!-- agences -->
-      {% for ag in s.agences %}
-      <details class="agence">
-        <summary>
-          <span class="ag-name">{{ ag.row['name'] }}</span>
-          <span class="ag-cred">mdp : <code>{{ ag.row['password'] }}</code></span>
-          <span class="ag-state">
-            {% if ag.finished %}termine{% elif ag.started %}mission {{ ag.row['current'] }}{% else %}pas commence{% endif %}
-            &middot; {{ ag.score }} pts</span>
-          <span class="ag-count">{{ ag.eleves|length }}/{{ max_eleves }} eleves</span>
-        </summary>
-        <div class="agence-body">
-          <div class="ag-actions">
-            <form class="inline" method="post" action="{{ url_for('admin_agence_newpwd', aid=ag.row['id']) }}"><button class="btn ghost xs">Nouveau mdp</button></form>
-            <form class="inline" method="post" action="{{ url_for('admin_agence_reset', aid=ag.row['id']) }}"><button class="btn ghost xs">Reset progression</button></form>
-            <form class="inline" method="post" action="{{ url_for('admin_agence_delete', aid=ag.row['id']) }}" onsubmit="return confirm('Supprimer l agence {{ ag.row['name'] }} ?');"><button class="btn ghost xs">Supprimer l'agence</button></form>
-          </div>
-          <table class="utable mini eleves">
-            <tr><th>Eleve</th><th style="width:60px;"></th></tr>
-            {% for e in ag.eleves %}
-            <tr>
-              <td>{{ e['name'] }}</td>
-              <td><form class="inline" method="post" action="{{ url_for('admin_eleve_delete', eid=e['id']) }}"><button class="btn ghost xs">&times;</button></form></td>
-            </tr>
-            {% endfor %}
-            {% if ag.eleves|length < max_eleves %}
-            <tr class="add-row">
-              <td colspan="2">
-                <form class="inline eleve-add" method="post" action="{{ url_for('admin_eleve_create') }}">
-                  <input type="hidden" name="agence_id" value="{{ ag.row['id'] }}">
-                  <input type="text" name="name" placeholder="Prenom de l'eleve" required>
-                  <button class="btn ghost xs">+ Ajouter</button>
-                </form>
-              </td>
-            </tr>
-            {% endif %}
-          </table>
-        </div>
-      </details>
-      {% endfor %}
-
-      <!-- ajouter une agence -->
-      {% if s.nb_agences < max_agences %}
-      <form class="inline agence-add" method="post" action="{{ url_for('admin_agence_create') }}">
-        <input type="hidden" name="session_id" value="{{ s.row['id'] }}">
-        <input type="text" name="name" placeholder="Nom de l'agence (ex. FBI)" required>
-        <button class="btn ghost xs">+ Ajouter une agence</button>
-      </form>
-      {% else %}
-      <p class="muted" style="font-size:12px;">Maximum {{ max_agences }} agences atteint.</p>
-      {% endif %}
-
-      <div class="sess-footer">
-        <form class="inline" method="post" action="{{ url_for('admin_session_delete', sid=s.row['id']) }}" onsubmit="return confirm('Supprimer toute la session {{ s.row['title'] }} ?');"><button class="btn ghost xs danger">Supprimer la session</button></form>
-      </div>
-    </div>
-  </details>
-  {% endfor %}
+  <h3>Sessions</h3>
+  <div id="sessions-grid" class="cards-grid">
+    {% for s in sessions %}{% include "_session_card.html" %}{% endfor %}
+  </div>
+  {% if not sessions %}<p id="sess-empty" class="muted">Aucune session pour le moment.</p>{% endif %}
 </div>
 
 <!-- MISSIONS (global) -->

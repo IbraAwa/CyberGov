@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block hud %}
+<a class="navlink" href="{{ url_for('admin') }}">&larr; Sessions</a>
+<a class="navlink" href="{{ url_for('logout') }}">Deconnexion</a>
+{% endblock %}
+{% block content %}
+<div class="paper tilt" style="padding:20px 26px;">
+  <span class="tape tl"></span><span class="tape tr"></span>
+  <div class="eyebrow">Session &middot; code <strong>{{ sess['code'] }}</strong>{% if sess['stacks'] %} &middot; {{ sess['stacks'] }}{% endif %}</div>
+  <h1 class="title">{{ sess['title'] }}</h1>
+  <p class="muted">Les agences se connectent avec : code <strong>{{ sess['code'] }}</strong> + nom de l'agence + mot de passe. Clique une agence pour gerer ses eleves.</p>
+</div>
+
+<!-- CLASSEMENT -->
+{% if board %}
+<div class="admin-card">
+  <h3>Classement de la session</h3>
+  <table class="utable mini">
+    <tr><th>#</th><th>Agence</th><th>Flags</th><th>Indices</th><th>Score</th></tr>
+    {% for d in board %}
+    <tr><td>{{ loop.index }}</td><td>{{ d['name'] }}</td><td>{{ d['flags'] }}</td><td>{{ d['hints'] }}</td><td class="sc">{{ d['score'] }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+
+<!-- AGENCES -->
+<div class="admin-card">
+  <h3>Agences (<span class="gcount" data-grid="#agences-grid">{{ agences|length }}</span>/{{ max_agences }})</h3>
+  <div class="board-wall">
+    <div id="agences-grid" class="postit-grid">
+      {% for a in agences %}{% set cidx = loop.index0 % 4 %}{% include "_agence_card.html" %}{% endfor %}
+      <form class="add-postit"
+            data-ajax-add data-target="#agences-grid" data-max="{{ max_agences }}"
+            method="post" action="{{ url_for('admin_agence_create') }}">
+        <input type="hidden" name="session_id" value="{{ sess['id'] }}">
+        <input type="text" name="name" placeholder="Nom de l'agence (ex. FBI)" required>
+        <button class="btn ghost xs">+ Ajouter une agence</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

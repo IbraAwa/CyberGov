@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block hud %}
+<a class="navlink" href="{{ url_for('session_detail', sid=sess['id']) }}">&larr; {{ sess['title'] }}</a>
+<a class="navlink" href="{{ url_for('logout') }}">Deconnexion</a>
+{% endblock %}
+{% block content %}
+<div class="paper tilt" style="padding:20px 26px;">
+  <span class="pin r"></span>
+  <div class="eyebrow">Agence &middot; session {{ sess['code'] }}</div>
+  <h1 class="title">{{ ag.row['name'] }}</h1>
+  <div class="ag-head">
+    <div class="ag-head-box">
+      <span class="lab">Mot de passe</span>
+      <code id="ag-pwd" class="ag-pwd">{{ ag.row['password'] }}</code>
+      <form class="inline" data-ajax-newpwd data-target="#ag-pwd" method="post"
+            action="{{ url_for('admin_agence_newpwd', aid=ag.row['id']) }}">
+        <button class="btn ghost xs">Nouveau mdp</button>
+      </form>
+    </div>
+    <div class="ag-head-box">
+      <span class="lab">Etat</span>
+      <strong>{% if ag.finished %}termine{% elif ag.started %}mission {{ ag.row['current'] }}{% else %}pas commence{% endif %}</strong>
+      &middot; {{ ag.score }} pts &middot; {{ ag.flags }} flags &middot; {{ ag.hints }} indices
+    </div>
+  </div>
+  <div class="ag-actions" style="margin-top:12px;">
+    <form class="inline" method="post" action="{{ url_for('admin_agence_reset', aid=ag.row['id']) }}"
+          onsubmit="return confirm('Reinitialiser la progression de {{ ag.row['name'] }} ?');">
+      <button class="btn ghost xs">Reset progression</button>
+    </form>
+    <form class="inline" method="post" action="{{ url_for('admin_agence_delete', aid=ag.row['id']) }}"
+          onsubmit="return confirm('Supprimer l agence {{ ag.row['name'] }} ?');">
+      <button class="btn ghost xs danger">Supprimer l'agence</button>
+    </form>
+  </div>
+  <p class="muted" style="font-size:12px;margin-top:10px;">Connexion de l'agence : code <strong>{{ sess['code'] }}</strong> + nom <strong>{{ ag.row['name'] }}</strong> + mot de passe ci-dessus.</p>
+</div>
+
+<!-- ELEVES -->
+<div class="admin-card">
+  <h3>Eleves (<span class="gcount" data-grid="#eleves-grid">{{ ag.nb_eleves }}</span>/{{ max_eleves }})</h3>
+  <p class="muted">Les eleves sont une simple liste nominative : ils n'ont pas de compte, ils jouent via l'agence.</p>
+  <div class="board-wall">
+    <div id="eleves-grid" class="postit-grid eleves">
+      {% for e in ag.eleves %}{% set cidx = loop.index0 % 4 %}{% include "_eleve_card.html" %}{% endfor %}
+      <form class="add-postit" data-ajax-add data-target="#eleves-grid" data-max="{{ max_eleves }}"
+            method="post" action="{{ url_for('admin_eleve_create') }}">
+        <input type="hidden" name="agence_id" value="{{ ag.row['id'] }}">
+        <input type="text" name="name" placeholder="Prenom de l'eleve" required>
+        <button class="btn ghost xs">+ Ajouter un eleve</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

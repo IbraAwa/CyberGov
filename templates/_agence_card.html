@@ -1,0 +1,15 @@
+<div class="ag-postit c{{ cidx }}" data-item>
+  <span class="pin"></span>
+  <a class="agp-open" href="{{ url_for('agence_detail', aid=a.row['id']) }}">
+    <div class="agp-name">{{ a.row['name'] }}</div>
+    <div class="agp-mdp">mdp&nbsp;: <code>{{ a.row['password'] }}</code></div>
+    <div class="agp-state">
+      {% if a.finished %}&#10003; termine{% elif a.started %}mission {{ a.row['current'] }}{% else %}pas commence{% endif %}
+      &middot; {{ a.score }} pts</div>
+    <div class="agp-count">{{ a.nb_eleves }}/{{ max_eleves }} eleves &rarr;</div>
+  </a>
+  <form class="agp-del" method="post" action="{{ url_for('admin_agence_delete', aid=a.row['id']) }}"
+        data-ajax-remove data-confirm="Supprimer l'agence {{ a.row['name'] }} ?">
+    <button type="submit" class="x" title="Supprimer l'agence">&times;</button>
+  </form>
+</div>

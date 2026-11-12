@@ -16,4 +16,81 @@
 {% block content %}{% endblock %}
 </div>
 {% block scripts %}{% endblock %}
+<script>
+// ---- AJAX admin : creations / suppressions sans recharger la page ----
+(function(){
+  function post(url, form){
+    return fetch(url, {method:'POST', headers:{'X-Requested-With':'fetch'},
+      body: form ? new FormData(form) : undefined})
+      .then(function(r){ return r.json().then(function(j){ return {status:r.status, j:j}; }); });
+  }
+  function updateGrid(sel){
+    var grid = document.querySelector(sel); if(!grid) return;
+    var n = grid.querySelectorAll(':scope > [data-item]').length;
+    document.querySelectorAll('.gcount[data-grid="'+sel+'"]').forEach(function(e){ e.textContent = n; });
+    var addf = document.querySelector('form[data-ajax-add][data-target="'+sel+'"]');
+    if(addf){ var max = parseInt(addf.getAttribute('data-max')||'0',10);
+      addf.style.display = (max && n >= max) ? 'none' : ''; }
+  }
+  document.addEventListener('submit', function(ev){
+    var f = ev.target;
+    // --- ajout (session / agence / eleve) ---
+    if(f.matches('form[data-ajax-add]')){
+      ev.preventDefault();
+      var target = document.querySelector(f.getAttribute('data-target'));
+      var btn = f.querySelector('button'); if(btn) btn.disabled = true;
+      post(f.action, f).then(function(res){
+        if(btn) btn.disabled = false;
+        if(res.j && res.j.ok){
+          var sel = f.getAttribute('data-target');
+          if(target){
+            var tmp = document.createElement('div'); tmp.innerHTML = res.j.html.trim();
+            var node = tmp.firstElementChild;
+            if(f.parentElement === target) target.insertBefore(node, f);      // form dans la grille : inserer avant
+            else if(f.hasAttribute('data-prepend')) target.insertBefore(node, target.firstChild);
+            else target.appendChild(node);
+          }
+          f.reset();
+          var empty = document.querySelector(f.getAttribute('data-hide-empty')||'\u0000');
+          if(empty) empty.remove();
+          updateGrid(sel);
+        } else { alert((res.j && res.j.error) || 'Erreur.'); }
+      }).catch(function(){ if(btn) btn.disabled=false; alert('Erreur reseau.'); });
+      return;
+    }
+    // --- suppression ---
+    if(f.matches('form[data-ajax-remove]')){
+      ev.preventDefault();
+      var c = f.getAttribute('data-confirm');
+      if(c && !window.confirm(c)) return;
+      post(f.action, f).then(function(res){
+        if(res.j && res.j.ok){
+          var item = f.closest('[data-item]');
+          var grid = item ? item.parentElement : null;
+          if(item) item.remove();
+          if(grid && grid.id) updateGrid('#'+grid.id);
+        } else { alert((res.j && res.j.error) || 'Erreur.'); }
+      }).catch(function(){ alert('Erreur reseau.'); });
+      return;
+    }
+    // --- nouveau mot de passe (met a jour l'affichage) ---
+    if(f.matches('form[data-ajax-newpwd]')){
+      ev.preventDefault();
+      post(f.action, f).then(function(res){
+        if(res.j && res.j.ok && res.j.password){
+          var el = document.querySelector(f.getAttribute('data-target'));
+          if(el) el.textContent = res.j.password;
+        }
+      });
+      return;
+    }
+  });
+  // init au chargement : compteurs + visibilite des formulaires d'ajout
+  document.addEventListener('DOMContentLoaded', function(){
+    document.querySelectorAll('form[data-ajax-add][data-target]').forEach(function(f){
+      updateGrid(f.getAttribute('data-target'));
+    });
+  });
+})();
+</script>
 </body></html>

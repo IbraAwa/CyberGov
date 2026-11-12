@@ -16,6 +16,7 @@
 {% endblock %}
 
 {% block content %}
+{% if preview %}<div class="preview-banner">&#128065; Apercu professeur &mdash; tous les indices et le corrige sont affiches, et la navigation est libre. Les eleves, eux, debloquent au fur et a mesure.</div>{% endif %}
 {% if msg %}<div class="msg {{ msg[0] }}">{{ msg[1] }}</div>{% endif %}
 
 <!-- BRIEFING -->
@@ -53,7 +54,7 @@
         {% endif %}
       </div>
     {% endif %}
-    <div class="cap">{{ lab }}<small>{% if lvl in taken %}-{{ costs[lvl] }} pts utilises{% else %}{{ costs[lvl] }} pts{% endif %}</small></div>
+    <div class="cap">{{ lab }}<small>{% if preview %}apercu{% elif lvl in taken %}-{{ costs[lvl] }} pts utilises{% else %}{{ costs[lvl] }} pts{% endif %}</small></div>
   </div>
   {% endfor %}
 </div>

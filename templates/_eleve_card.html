@@ -1,0 +1,7 @@
+<div class="eleve-postit c{{ cidx }}" data-item>
+  <span class="pin"></span>
+  <div class="ep-name">{{ e['name'] }}</div>
+  <form class="ep-del" method="post" action="{{ url_for('admin_eleve_delete', eid=e['id']) }}" data-ajax-remove>
+    <button type="submit" class="x" title="Retirer l'eleve">&times;</button>
+  </form>
+</div>
