@@ -2,12 +2,17 @@ services:
   - type: web
     name: operation-el-jefe
     runtime: python
-    plan: free               # gratuit : PAS de disque. SQLite est ephemere (remis a zero
-                             # a chaque redemarrage/mise en veille). Voir README.
+    plan: starter            # ~7 $/mois mais facture A LA SECONDE quand le service tourne.
+                             # Suspendre le service (Settings -> Suspend) arrete la facturation
+                             # du compute entre deux cours ; le disque (ci-dessous) garde les donnees.
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DB_PATH
-        value: /tmp/labo.db
+        value: /var/data/labo.db
+    disk:
+      name: labo-data
+      mountPath: /var/data
+      sizeGB: 1              # 0,25 $/Go/mois ; conserve comptes et scores meme service suspendu.
