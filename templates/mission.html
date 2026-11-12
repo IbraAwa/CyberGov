@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block hud %}
 <div class="chip live">Score&nbsp; <b id="score">{{ score }}</b></div>
-<div class="chip">Indices&nbsp; <b>{{ hints_used }}/{{ max_hints }}</b></div>
+<div class="chip">Indices&nbsp; <b><span id="hints-used">{{ hints_used }}</span>/{{ max_hints }}</b></div>
 <div class="progress">
   {% for i in range(1, nb+1) %}
     {% if i <= unlocked %}
@@ -35,28 +35,7 @@
 <p class="muted" style="font-family:'Special Elite',monospace;font-size:12px;">
   6 indices maximum pour toute l'operation. Chacun coute des points &mdash; reflechis avant de piocher.</p>
 <div class="hints-photos">
-  {% for lvl, lab in [('leger','Indice leger'),('moyen','Indice moyen'),('fort','Indice fort')] %}
-  <div class="photo {{ lvl }}{% if lvl in taken %} taken{% endif %}">
-    {% if lvl in taken %}
-      <div class="content">{{ m['hint_'+lvl]|safe }}</div>
-    {% else %}
-      <div class="frame">
-        <div class="q">?</div>
-        <div class="cost">{{ costs[lvl] }} points</div>
-        {% if hints_used >= max_hints %}
-          <div class="soon">Indices epuises (6/6)</div>
-        {% else %}
-          <form method="post">
-            <input type="hidden" name="action" value="hint">
-            <input type="hidden" name="level" value="{{ lvl }}">
-            <button class="btn ghost" style="font-size:12px;padding:9px 16px;">Demander</button>
-          </form>
-        {% endif %}
-      </div>
-    {% endif %}
-    <div class="cap">{{ lab }}<small>{% if preview %}apercu{% elif lvl in taken %}-{{ costs[lvl] }} pts utilises{% else %}{{ costs[lvl] }} pts{% endif %}</small></div>
-  </div>
-  {% endfor %}
+  {% for lvl, lab in [('leger','Indice leger'),('moyen','Indice moyen'),('fort','Indice fort')] %}{% include "_hint_photo.html" %}{% endfor %}
 </div>
 
 <!-- BAS : CORRIGE + FLAG COTE A COTE -->
@@ -89,18 +68,17 @@
 
 {% block scripts %}
 <script>
-(function(){
-  var base={{ base }}, pph={{ pph }}, hintPts={{ hint_pts }}, bonus={{ bonus }},
-      flags={{ flags_count }}, started={{ started_ts }};
-  var el=document.getElementById('score');
-  function tick(){
-    var now=Date.now()/1000;
-    var h=(now-started)/3600;
-    var s=Math.round(base - h*pph - hintPts + bonus*flags);
-    if(s<0)s=0;
-    if(el)el.textContent=s;
-  }
-  tick(); setInterval(tick,1000);
-})();
+  window.LS = {base:{{ base }}, pph:{{ pph }}, hintPts:{{ hint_pts }}, bonus:{{ bonus }},
+               flags:{{ flags_count }}, started:{{ started_ts }}};
+  (function(){
+    var el=document.getElementById('score');
+    function tick(){
+      var now=Date.now()/1000, h=(now-window.LS.started)/3600;
+      var s=Math.round(window.LS.base - h*window.LS.pph - window.LS.hintPts + window.LS.bonus*window.LS.flags);
+      if(s<0)s=0;
+      if(el)el.textContent=s;
+    }
+    tick(); setInterval(tick,1000);
+  })();
 </script>
 {% endblock %}

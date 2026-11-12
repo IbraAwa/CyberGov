@@ -9,6 +9,7 @@ DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "lab
 BASE_POINTS = 1600          # 16 h
 POINTS_PER_HOUR = 100       # le temps coute 100 pts/h
 HINT_COST = {"leger": 50, "moyen": 125, "fort": 200}
+HINT_LABELS = {"leger": "Indice leger", "moyen": "Indice moyen", "fort": "Indice fort"}
 MAX_HINTS = 6               # nombre total d'indices autorises
 FLAG_BONUS = 75             # chaque flag valide rapporte des points
 
@@ -185,6 +186,228 @@ with zipfile.ZipFile("coffre.zip") as z:
  },
 ]
 
+PH_HINT = "<p><em>Indice a completer par le professeur.</em></p>"
+PH_CORR = "<p><em>Corrige a completer par le professeur.</em></p>"
+
+# Indices + corriges reels pour les missions 2 a 5 (remplacent les placeholders).
+FILLED_CONTENT = {
+ 2: {
+  "hint_leger": """<p><strong>Ce que vous savez deja.</strong> Le serveur ne verifie pas ce que vous tapez : votre saisie est collee directement dans une requete SQL, et le serveur ne fait pas la difference entre vos mots et ses ordres.</p>
+<p><strong>Par ou commencer :</strong></p>
+<ul>
+<li>Tapez une seule apostrophe dans le champ identifiant de la connexion. Que se passe-t-il ?</li>
+<li>Une erreur SQL affichee est une information : votre texte atteint la base.</li>
+<li>Une fois connecte, la barre de recherche presente la meme faille : elle affiche le resultat d'une requete.</li>
+<li>Pour lire une autre table, votre requete doit renvoyer le meme nombre de colonnes que l'originale. Combien en renvoie-t-elle ?</li>
+<li>Vous ne connaissez pas le nom des tables : SQLite garde la liste dans une table systeme. Comment la lire ?</li>
+</ul>
+<p>Ce que vous cherchez : le hash du mot de passe du chef, <span class="code">el_jefe</span>, dans la table <span class="code">members</span>.</p>
+<p class="hint-note">Indice leger : la structure seulement. Pas de texte a copier.</p>""",
+  "hint_moyen": """<p><strong>Connexion : contourner le mot de passe.</strong> La requete ressemble a <span class="code">WHERE username = '[ID]' AND password = '...'</span> avec votre identifiant a la place de [ID].</p>
+<ul>
+<li>Votre identifiant doit fermer l'apostrophe avant la fin prevue.</li>
+<li>Ajoutez une condition toujours vraie (par exemple <span class="code">OR 1=1</span>).</li>
+<li>Ajoutez un commentaire SQL (<span class="code">--</span>) pour ignorer la verification du mot de passe.</li>
+</ul>
+<p><strong>Recherche : compter puis lire.</strong></p>
+<ul>
+<li>Testez <span class="code">ORDER BY 1</span>, puis 2, puis 3. Le premier numero qui provoque une erreur est trop grand : vous avez le nombre de colonnes.</li>
+<li>Pour lire une autre table, <span class="code">UNION SELECT</span> avec le meme nombre de colonnes, dans l'ordre.</li>
+<li>Listez les tables via la table systeme <span class="code">sqlite_master</span> (colonne <span class="code">name</span>).</li>
+</ul>
+<p>Attention : un espace apres les deux tirets (<span class="code">-- </span>) evite beaucoup d'erreurs. Utilisez des apostrophes droites (<span class="code">'</span>), pas typographiques.</p>
+<p class="hint-note">Indice moyen : les formes a utiliser, sans les valeurs completes.</p>""",
+  "hint_fort": """<p><strong>Pas a pas.</strong></p>
+<p>1. Connexion sans mot de passe &mdash; dans le champ identifiant :</p>
+<pre class="snippet">' OR 1=1 --</pre>
+<p>Mot de passe : n'importe quoi. Vous etes connecte, la faille fonctionne.</p>
+<p>2. Nombre de colonnes (barre de recherche) :</p>
+<pre class="snippet">' ORDER BY 2 --</pre>
+<p>Puis <span class="code">ORDER BY 3</span> provoque une erreur : la requete a 2 colonnes.</p>
+<p>3. Nom des tables :</p>
+<pre class="snippet">' UNION SELECT name, sql FROM sqlite_master WHERE type='table' --</pre>
+<p>La table des comptes apparait : <span class="code">members</span>.</p>
+<p>4. Lire les comptes :</p>
+<pre class="snippet">' UNION SELECT username, password FROM members --</pre>
+<p>Notez le hash d'<span class="code">el_jefe</span> (32 caracteres hex).</p>
+<p>5. Cibler le chef :</p>
+<pre class="snippet">' UNION SELECT animal, birth_year FROM members WHERE username='el_jefe' --</pre>
+<p>Notez l'animal et l'annee : ils serviront a l'etape 3. Le flag apparait dans la meme liste, sur la ligne du compte <span class="code">sys_audit</span>.</p>
+<p class="hint-note">Indice fort : la demarche complete. Il ne donne ni le hash, ni le mot de passe, ni le flag : il faut les lire vous-meme.</p>""",
+  "correction": """<h3>Demarche de A a Z</h3>
+<ol>
+<li>Les champs ne sont pas filtres : la saisie est concatenee dans la requete SQL (injection SQL).</li>
+<li>Connexion sans mot de passe avec <span class="code">' OR 1=1 --</span> : la condition est toujours vraie et le <span class="code">--</span> annule la verification du mot de passe.</li>
+<li>Dans la recherche, <span class="code">ORDER BY</span> donne le nombre de colonnes (ici 2).</li>
+<li><span class="code">' UNION SELECT name, sql FROM sqlite_master WHERE type='table' --</span> revele la table <span class="code">members</span>.</li>
+<li><span class="code">' UNION SELECT username, password FROM members --</span> affiche les hashs ; celui d'<span class="code">el_jefe</span> est <span class="code">164d50a562afd0cbbc3298aa3eb35d30</span>.</li>
+<li><span class="code">' UNION SELECT animal, birth_year FROM members WHERE username='el_jefe' --</span> donne l'animal (<span class="code">cobra</span>) et l'annee, pour l'etape 3.</li>
+</ol>
+<p>Le flag est sur la ligne du compte <span class="code">sys_audit</span> : <span class="code">FLAG{sqli_union_ok}</span>.</p>
+<h3>Comment se defendre</h3>
+<ul>
+<li>Requetes parametrees (placeholders), jamais de concatenation de chaines.</li>
+<li>Comptes a privileges minimaux et messages d'erreur generiques (ne pas exposer le SQL).</li>
+<li>Stocker les mots de passe avec un hash lent et sale (bcrypt, argon2), pas MD5.</li>
+</ul>""",
+ },
+ 3: {
+  "hint_leger": """<p><strong>Ce que vous savez.</strong> Vous avez le hash du compte du chef, l'animal et l'annee de naissance. Le mot de passe suit une forme precise, decrite dans le briefing.</p>
+<ul>
+<li>Quel type de hash est-ce ? Combien de caracteres, quel alphabet ?</li>
+<li>Si vous connaissez la forme du mot de passe, combien de candidats faut-il tester ?</li>
+<li>Quelle librairie standard Python calcule une empreinte ?</li>
+</ul>
+<p class="hint-note">Indice leger : l'orientation seulement. Pas de code a copier.</p>""",
+  "hint_moyen": """<p><strong>Construire les candidats.</strong></p>
+<ul>
+<li>L'animal est fixe : vous le connaissez deja.</li>
+<li>La couleur change : faites une liste de couleurs courantes.</li>
+<li>L'annee change aussi : une plage d'annees suffit, puisque vous connaissez l'annee de naissance.</li>
+<li>Chaque couleur combinee avec chaque annee : une boucle dans une autre.</li>
+</ul>
+<p><strong>Tester chaque candidat.</strong></p>
+<ul>
+<li>Calculez l'empreinte MD5 avec <span class="code">hashlib</span>, en pensant a <span class="code">.encode()</span>.</li>
+<li>Comparez avec <span class="code">hexdigest()</span> au hash du chef.</li>
+<li>Des que ca correspond, affichez le mot de passe et arretez.</li>
+</ul>
+<p>Attention : un espace, une majuscule oubliee ou un mauvais chiffre change toute l'empreinte.</p>
+<p class="hint-note">Indice moyen : la methode, sans les valeurs.</p>""",
+  "hint_fort": """<p><strong>Le programme pas a pas.</strong> Recopiez ce code dans <span class="code">crack.py</span> et lancez <span class="code">python crack.py</span>. Verifiez que le hash est bien celui de l'etape 2.</p>
+<pre class="snippet">import hashlib
+cible = "164d50a562afd0cbbc3298aa3eb35d30"   # hash recupere a l'etape 2
+animal = "cobra"                              # recupere a l'etape 2
+couleurs = ["Noir", "Rouge", "Blanc", "Bleu", "Vert", "Or"]
+trouve = None
+for couleur in couleurs:
+    for annee in range(1950, 2011):
+        mot_de_passe = f"{animal}{couleur}{annee}"
+        empreinte = hashlib.md5(mot_de_passe.encode()).hexdigest()
+        if empreinte == cible:
+            trouve = mot_de_passe
+            print("Mot de passe trouve :", mot_de_passe)
+            break
+    if trouve:
+        break
+if trouve is None:
+    print("Rien trouve : elargissez la liste de couleurs ou la plage d'annees.")</pre>
+<p>Les deux boucles couvrent toutes les combinaisons couleur + annee ; <span class="code">hexdigest()</span> calcule l'empreinte ; <span class="code">break</span> arrete des que ca correspond.</p>
+<p class="hint-note">Indice fort : la demarche complete. Il ne donne pas le mot de passe : trouvez-le en lancant le programme.</p>""",
+  "correction": """<h3>Demarche de A a Z</h3>
+<ol>
+<li>Le hash fait 32 caracteres hexadecimaux : c'est du MD5, non sale et rapide a tester.</li>
+<li>Le mot de passe a une forme connue : animal + couleur + annee. L'animal (<span class="code">cobra</span>) et l'annee viennent de l'etape 2.</li>
+<li>On genere les candidats (couleurs x annees) et on compare l'empreinte MD5 de chacun au hash cible.</li>
+<li>Correspondance trouvee : <span class="code">cobraNoir1978</span>.</li>
+</ol>
+<p>On se connecte ensuite avec <span class="code">el_jefe</span> / <span class="code">cobraNoir1978</span>. Flag : <span class="code">FLAG{hash_cracked_ok}</span>.</p>
+<h3>Comment se defendre</h3>
+<ul>
+<li>MD5 est casse : utiliser un hash lent et sale (bcrypt, scrypt, argon2).</li>
+<li>Imposer des mots de passe non devinables (pas de schema animal + couleur + annee).</li>
+</ul>""",
+ },
+ 4: {
+  "hint_leger": """<p><strong>Ce que vous savez.</strong> Le compte du chef signale une activite suspecte. Une zone sensible existe, mais aucun lien ne mene a elle.</p>
+<ul>
+<li>Un site peut indiquer aux moteurs les pages a ne pas visiter. Ou se trouve ce fichier ?</li>
+<li>Le code d'acces n'apparait pas a l'ecran. Un navigateur peut-il voir ce que le serveur envoie en coulisses ?</li>
+<li>Le code source d'une page contient parfois des commentaires. Lesquels, sur "Mon compte" ?</li>
+</ul>
+<p class="hint-note">Indice leger : l'orientation seulement. Pas d'adresse ni de code a copier.</p>""",
+  "hint_moyen": """<p><strong>Trois endroits a regarder.</strong></p>
+<ul>
+<li>Le fichier des chemins exclus : il nomme la zone sensible.</li>
+<li>Le code source de "Mon compte" : un commentaire JavaScript mentionne la meme zone.</li>
+<li>Les en-tetes de reponse d'une requete faite par la page : le code y est transmis.</li>
+</ul>
+<p><strong>Les outils.</strong></p>
+<ul>
+<li>Code source : clic droit &rarr; "Afficher le code source", ou Ctrl+U.</li>
+<li>Requetes : F12, onglet <span class="code">Network</span>, puis recharger.</li>
+<li>En-tetes : cliquer une requete &rarr; onglet <span class="code">Headers</span>, section Response Headers.</li>
+</ul>
+<p>Attention : le code n'apparait que connecte en chef. Connectez-vous d'abord avec <span class="code">el_jefe</span>.</p>
+<p class="hint-note">Indice moyen : les trois pistes et les outils, sans l'adresse exacte ni le code.</p>""",
+  "hint_fort": """<p><strong>Pas a pas.</strong></p>
+<ol>
+<li>Ouvrez <span class="code">/robots.txt</span> sur l'adresse de l'intranet : la ligne <span class="code">Disallow</span> donne le chemin de la zone sensible.</li>
+<li>Connectez-vous avec <span class="code">el_jefe</span> et le mot de passe de l'etape 3.</li>
+<li>Code source de "Mon compte" (Ctrl+U) : un commentaire mentionne la zone, et un appel a <span class="code">/api/v1/statut</span>.</li>
+<li>F12 &rarr; Network &rarr; recharger &rarr; requete <span class="code">statut</span> &rarr; Headers : l'en-tete <span class="code">X-Code-Acces</span> contient le code.</li>
+<li>Ouvrez la zone sensible, saisissez le code : le flag s'affiche.</li>
+</ol>
+<p class="hint-note">Indice fort : la demarche complete. Il ne donne pas le code : lisez-le dans l'en-tete.</p>""",
+  "correction": """<h3>Demarche de A a Z</h3>
+<ol>
+<li><span class="code">/robots.txt</span> revele, via <span class="code">Disallow</span>, le chemin de la zone sensible (ex. <span class="code">/chef/salle-secrete</span>).</li>
+<li>Connecte en <span class="code">el_jefe</span>, le code source de "Mon compte" confirme la zone et un appel a <span class="code">/api/v1/statut</span>.</li>
+<li>Dans l'onglet Network, la reponse de <span class="code">/api/v1/statut</span> porte un en-tete <span class="code">X-Code-Acces</span> : c'est le code d'acces.</li>
+<li>On ouvre la zone sensible et on saisit ce code.</li>
+</ol>
+<p>Flag : <span class="code">FLAG{hidden_routes_ok}</span>.</p>
+<h3>Comment se defendre</h3>
+<ul>
+<li>La securite par l'obscurite ne protege pas : <span class="code">robots.txt</span> et les commentaires sont publics.</li>
+<li>Proteger les zones sensibles par une vraie autorisation cote serveur, pas par un chemin cache.</li>
+<li>Ne jamais transmettre un secret dans un en-tete ou le code source.</li>
+</ul>""",
+ },
+ 5: {
+  "hint_leger": """<p><strong>Par ou commencer.</strong></p>
+<ul>
+<li>Dans les outils de dev, quelle partie de l'onglet Network ne montre que les appels au serveur ?</li>
+<li>La page "Mon compte" fait des appels en arriere-plan. Lesquels ?</li>
+<li>Un identifiant dans une adresse peut-il etre change pour voir un autre element ?</li>
+<li>Une reponse contient plus que son corps : que trouve-t-on dans ses en-tetes ?</li>
+</ul>
+<p class="hint-note">Indice leger : l'orientation seulement. Pas d'adresse ni de valeur a copier.</p>""",
+  "hint_moyen": """<p><strong>Trois gestes.</strong></p>
+<ul>
+<li>Observer : filtrez le Network sur <span class="code">api</span>, puis rechargez la page du compte.</li>
+<li>Tester : changez l'identifiant de dossier dans l'adresse. Certains identifiants existent, d'autres non.</li>
+<li>Lire les en-tetes : pas seulement le corps JSON. Une valeur y est encodee en base64.</li>
+</ul>
+<p><strong>Decoder.</strong></p>
+<ul>
+<li>Dans la console du navigateur, <span class="code">atob()</span> decode une valeur base64.</li>
+<li>Un terminal decode aussi avec <span class="code">base64 -d</span>.</li>
+</ul>
+<p>Attention : ce n'est pas la reponse qui est encodee, c'est un en-tete. Cherchez le bon.</p>
+<p class="hint-note">Indice moyen : les gestes et les outils, sans l'identifiant ni le flag.</p>""",
+  "hint_fort": """<p><strong>Pas a pas.</strong></p>
+<ol>
+<li>Sur "Mon compte", la page appelle un dossier. Notez son identifiant dans l'onglet Network.</li>
+<li>Ouvrez <span class="code">/api/v1/dossiers/</span> suivie d'un autre numero (essayez les numeros proches) : le dossier classifie apparait.</li>
+<li>Sur cette reponse, ouvrez les en-tetes : <span class="code">X-Mission-Trace</span> contient une valeur encodee.</li>
+<li>Decodez-la :</li>
+</ol>
+<pre class="snippet">atob("&lt;la valeur de l'en-tete&gt;")</pre>
+<p>Le resultat est le flag final.</p>
+<p class="hint-note">Indice fort : la demarche complete. Il ne donne pas le numero du dossier ni le flag : trouvez-les vous-meme.</p>""",
+  "correction": """<h3>Demarche de A a Z</h3>
+<ol>
+<li>Onglet Network filtre sur <span class="code">api</span> : "Mon compte" appelle <span class="code">/api/v1/dossiers/&lt;id&gt;</span>.</li>
+<li>En changeant l'identifiant (IDOR), on atteint un dossier classifie non lie dans l'interface.</li>
+<li>La reponse de ce dossier porte un en-tete <span class="code">X-Mission-Trace</span> : une chaine base64.</li>
+<li>On la decode avec <span class="code">atob(...)</span> (ou <span class="code">base64 -d</span>).</li>
+</ol>
+<p>Le flag final : <span class="code">FLAG{api_chain_ok}</span>.</p>
+<h3>Comment se defendre</h3>
+<ul>
+<li>Verifier les droits cote serveur sur chaque objet (eviter l'IDOR) : un identifiant devinable ne suffit pas.</li>
+<li>Ne pas mettre de donnees sensibles dans des en-tetes ; base64 n'est pas du chiffrement.</li>
+<li>Journaliser et limiter les acces aux ressources de l'API.</li>
+</ul>""",
+ },
+}
+
+# fusionne le contenu reel dans le seed (pour les bases neuves)
+for _m in MISSIONS_SEED:
+    if _m["num"] in FILLED_CONTENT:
+        _m.update(FILLED_CONTENT[_m["num"]])
+
 ENONCE_GLOBAL = """
 <p>Quatre services (FBI, CIA, NCIS, DEA) se disputent un dossier : faire tomber <strong>El Jefe</strong>, chef du cartel de Sinaloa. Le premier a reconstituer toute l'operation gagne.</p>
 <p>La mission se joue en <strong>5 etapes</strong>. A chaque etape, un briefing, un objectif, et un <strong>flag</strong> a trouver pour passer a la suivante.</p>
@@ -285,6 +508,16 @@ def init_db():
                          VALUES(?,?,?,?,?,?,?,?)""",
                       (m["num"], m["title"], m["flag"], m["briefing"],
                        m["hint_leger"], m["hint_moyen"], m["hint_fort"], m["correction"]))
+    # remplit les indices/corriges restes en placeholder (sans ecraser tes modifications)
+    for num, fields in FILLED_CONTENT.items():
+        r = c.execute("SELECT hint_leger,hint_moyen,hint_fort,correction FROM missions WHERE num=?",
+                      (num,)).fetchone()
+        if not r:
+            continue
+        for i, col in enumerate(("hint_leger", "hint_moyen", "hint_fort", "correction")):
+            placeholder = PH_CORR if col == "correction" else PH_HINT
+            if r[i] == placeholder:
+                c.execute(f"UPDATE missions SET {col}=? WHERE num=?", (fields[col], num))
     if not c.execute("SELECT 1 FROM users WHERE role='prof'").fetchone():
         c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("prof", "eljefe2026", "prof"))
     conn.commit(); conn.close()
@@ -479,15 +712,33 @@ def mission(n):
                 msg = ("err", "Flag incorrect. Verifie la casse et le format FLAG{...}.")
         elif action == "hint":
             level = request.form.get("level")
-            if level in HINT_COST:
+            err = None
+            if level not in HINT_COST:
+                err = "Niveau d'indice invalide."
+            else:
                 already = db().execute("SELECT 1 FROM hints WHERE agence_id=? AND mission=? AND level=?",
                                        (a["id"], n, level)).fetchone()
-                if hint_count_used(a["id"]) >= MAX_HINTS:
-                    msg = ("err", "Vous avez utilise vos 6 indices.")
-                elif not already:
+                if already:
+                    pass  # deja debloque : idempotent
+                elif hint_count_used(a["id"]) >= MAX_HINTS:
+                    err = "Vous avez utilise vos 6 indices."
+                else:
                     db().execute("INSERT INTO hints(agence_id,mission,level,cost,ts) VALUES(?,?,?,?,?)",
                                  (a["id"], n, level, HINT_COST[level], time.time()))
                     db().commit()
+            if wants_json():
+                if err:
+                    return jsonify(ok=False, error=err), 400
+                taken2 = {h["level"] for h in db().execute(
+                    "SELECT level FROM hints WHERE agence_id=? AND mission=?", (a["id"], n)).fetchall()}
+                html = render_template("_hint_photo.html", lvl=level, lab=HINT_LABELS[level], m=m,
+                                       taken=taken2, costs=HINT_COST, hints_used=hint_count_used(a["id"]),
+                                       max_hints=MAX_HINTS, preview=False, n=n)
+                return jsonify(ok=True, level=level, html=html, score=compute_score(a),
+                               hints_used=hint_count_used(a["id"]),
+                               hint_pts=hint_points_used(a["id"]), max_hints=MAX_HINTS)
+            if err:
+                msg = ("err", err)
             return redirect(url_for("mission", n=n))
         elif action == "correction":
             code = request.form.get("code", "").strip()

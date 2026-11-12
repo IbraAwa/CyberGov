@@ -1,0 +1,20 @@
+<div class="photo {{ lvl }}{% if lvl in taken %} taken{% endif %}" data-level="{{ lvl }}">
+  {% if lvl in taken %}
+    <div class="content">{{ m['hint_'+lvl]|safe }}</div>
+  {% else %}
+    <div class="frame">
+      <div class="q">?</div>
+      <div class="cost">{{ costs[lvl] }} points</div>
+      {% if hints_used >= max_hints %}
+        <div class="soon">Indices epuises (6/6)</div>
+      {% else %}
+        <form method="post" action="{{ url_for('mission', n=n) }}" data-ajax-hint>
+          <input type="hidden" name="action" value="hint">
+          <input type="hidden" name="level" value="{{ lvl }}">
+          <button class="btn ghost" style="font-size:12px;padding:9px 16px;">Demander</button>
+        </form>
+      {% endif %}
+    </div>
+  {% endif %}
+  <div class="cap">{{ lab }}<small>{% if preview %}apercu{% elif lvl in taken %}-{{ costs[lvl] }} pts utilises{% else %}{{ costs[lvl] }} pts{% endif %}</small></div>
+</div>

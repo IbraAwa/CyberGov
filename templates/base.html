@@ -24,6 +24,8 @@
       body: form ? new FormData(form) : undefined})
       .then(function(r){ return r.json().then(function(j){ return {status:r.status, j:j}; }); });
   }
+  // un input name="action" masque form.action : on lit l'attribut HTML
+  function formAction(f){ return f.getAttribute('action') || location.href; }
   function updateGrid(sel){
     var grid = document.querySelector(sel); if(!grid) return;
     var n = grid.querySelectorAll(':scope > [data-item]').length;
@@ -39,7 +41,7 @@
       ev.preventDefault();
       var target = document.querySelector(f.getAttribute('data-target'));
       var btn = f.querySelector('button'); if(btn) btn.disabled = true;
-      post(f.action, f).then(function(res){
+      post(formAction(f), f).then(function(res){
         if(btn) btn.disabled = false;
         if(res.j && res.j.ok){
           var sel = f.getAttribute('data-target');
@@ -63,7 +65,7 @@
       ev.preventDefault();
       var c = f.getAttribute('data-confirm');
       if(c && !window.confirm(c)) return;
-      post(f.action, f).then(function(res){
+      post(formAction(f), f).then(function(res){
         if(res.j && res.j.ok){
           var item = f.closest('[data-item]');
           var grid = item ? item.parentElement : null;
@@ -73,10 +75,30 @@
       }).catch(function(){ alert('Erreur reseau.'); });
       return;
     }
+    // --- demande d'indice (revele le post-it sans recharger) ---
+    if(f.matches('form[data-ajax-hint]')){
+      ev.preventDefault();
+      var btn = f.querySelector('button'); if(btn) btn.disabled = true;
+      post(formAction(f), f).then(function(res){
+        if(res.j && res.j.ok){
+          var photo = document.querySelector('.photo[data-level="'+res.j.level+'"]');
+          if(photo){ var tmp=document.createElement('div'); tmp.innerHTML=res.j.html.trim(); photo.replaceWith(tmp.firstElementChild); }
+          var hu = document.getElementById('hints-used'); if(hu) hu.textContent = res.j.hints_used;
+          if(window.LS){ window.LS.hintPts = res.j.hint_pts; }
+          var sc = document.getElementById('score'); if(sc) sc.textContent = res.j.score;
+          if(res.j.hints_used >= res.j.max_hints){
+            document.querySelectorAll('.photo .frame form[data-ajax-hint]').forEach(function(ff){
+              var fr = ff.closest('.frame'); if(fr){ ff.remove(); var d=document.createElement('div'); d.className='soon'; d.textContent='Indices epuises (6/6)'; fr.appendChild(d); }
+            });
+          }
+        } else { if(btn) btn.disabled=false; alert((res.j && res.j.error) || 'Erreur.'); }
+      }).catch(function(){ if(btn) btn.disabled=false; alert('Erreur reseau.'); });
+      return;
+    }
     // --- nouveau mot de passe (met a jour l'affichage) ---
     if(f.matches('form[data-ajax-newpwd]')){
       ev.preventDefault();
-      post(f.action, f).then(function(res){
+      post(formAction(f), f).then(function(res){
         if(res.j && res.j.ok && res.j.password){
           var el = document.querySelector(f.getAttribute('data-target'));
           if(el) el.textContent = res.j.password;
