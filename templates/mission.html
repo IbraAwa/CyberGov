@@ -31,7 +31,7 @@
   6 indices maximum pour toute l'operation. Chacun coute des points &mdash; reflechis avant de piocher.</p>
 <div class="hints-photos">
   {% for lvl, lab in [('leger','Indice leger'),('moyen','Indice moyen'),('fort','Indice fort')] %}
-  <div class="photo {{ lvl }}">
+  <div class="photo {{ lvl }}{% if lvl in taken %} taken{% endif %}">
     {% if lvl in taken %}
       <div class="content">{{ m['hint_'+lvl]|safe }}</div>
     {% else %}
