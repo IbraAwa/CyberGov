@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: operation-el-jefe
+    runtime: python
+    plan: starter            # "starter" permet un disque persistant ; "free" = sans disque (SQLite remis a zero au redemarrage)
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_PATH
+        value: /var/data/labo.db
+    disk:
+      name: labo-data
+      mountPath: /var/data
+      sizeGB: 1

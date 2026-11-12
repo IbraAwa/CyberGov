@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block hud %}
+<a class="navlink" href="{{ url_for('logout') }}">Deconnexion</a>
+{% endblock %}
+{% block content %}
+<div class="paper tilt" style="margin-top:40px;">
+  <span class="pin"></span>
+  <div class="stamp">Top secret</div>
+  <div class="eyebrow">Dossier n&deg; EJ-2026 &middot; diffusion restreinte</div>
+  <h1 class="title">Operation El Jefe</h1>
+  <h2 class="mt">Mise en situation</h2>
+  {{ enonce|safe }}
+  <div class="divider"></div>
+  <form method="post" action="{{ url_for('start') }}" class="center">
+    <button class="btn big gold">&#9654; Demarrer l'operation</button>
+    <p class="muted" style="font-family:'Special Elite',monospace;font-size:12px;margin-top:14px;">
+      Le chrono demarre au clic. Bonne chasse.</p>
+  </form>
+  <div class="coffee" style="width:140px;height:140px;left:30px;bottom:10px;"></div>
+</div>
+{% endblock %}

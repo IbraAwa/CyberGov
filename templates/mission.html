@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block hud %}
+<div class="chip live">Score&nbsp; <b id="score">{{ score }}</b></div>
+<div class="chip">Indices&nbsp; <b>{{ hints_used }}/{{ max_hints }}</b></div>
+<div class="progress">
+  {% for i in range(1, nb+1) %}
+    <div class="dot {% if i < (u['current'] or 1) %}done{% elif i == n %}cur{% endif %}">{{ i }}</div>
+  {% endfor %}
+</div>
+<a class="navlink" href="{{ url_for('classement') }}">Classement</a>
+<a class="navlink" href="{{ url_for('logout') }}">Sortir</a>
+{% endblock %}
+
+{% block content %}
+{% if msg %}<div class="msg {{ msg[0] }}">{{ msg[1] }}</div>{% endif %}
+
+<!-- BRIEFING -->
+<div class="paper tilt">
+  <span class="tape tl"></span><span class="tape tr"></span>
+  <div class="stamp">Mission {{ n }}</div>
+  <div class="eyebrow">Briefing de mission &middot; etape {{ n }} / {{ nb }}</div>
+  <h1 class="title">{{ m['title'] }}</h1>
+  {% if is_done %}<span class="done-badge">&#10003; Flag valide</span>{% endif %}
+  <div style="margin-top:12px;">{{ m['briefing']|safe }}</div>
+  <div class="coffee" style="width:120px;height:120px;right:24px;bottom:12px;"></div>
+</div>
+
+<!-- SOUMETTRE LE FLAG -->
+<div class="paper" style="max-width:640px;">
+  <span class="pin gold"></span>
+  <h2 class="mt" style="margin-top:4px;">Soumettre le flag</h2>
+  <p class="muted">Quand tu as trouve le flag de cette etape, colle-le ici pour passer a la suite.</p>
+  <form method="post">
+    <input type="hidden" name="action" value="flag">
+    <input class="flag-input" name="flag" placeholder="FLAG{...}" autocomplete="off">
+    <div style="margin-top:16px;"><button class="btn">Valider &rarr;</button></div>
+  </form>
+</div>
+
+<!-- LE TABLEAU D'INDICES -->
+<h2 class="mt" style="color:#2a1703;margin:34px 0 4px;">&#128204; Le tableau d'indices</h2>
+<p class="muted" style="font-family:'Special Elite',monospace;font-size:12px;">
+  6 indices maximum pour toute l'operation. Chacun coute des points &mdash; reflechis avant de piocher.</p>
+<div class="board-hints">
+  {% for lvl, lab in [('leger','Indice leger'),('moyen','Indice moyen'),('fort','Indice fort')] %}
+    {% if lvl in taken %}
+      <div class="postit {{ lvl }}">
+        <span class="ptitle">{{ lab }}</span>
+        <div class="hint-full">{{ m['hint_'+lvl]|safe }}</div>
+        <span class="cost">-{{ costs[lvl] }} pts</span>
+      </div>
+    {% else %}
+      <div class="postit {{ lvl }} locked">
+        <span class="ptitle">{{ lab }}</span>
+        <div>Coute <b>{{ costs[lvl] }} points</b></div>
+        {% if hints_used >= max_hints %}
+          <div class="muted" style="margin-top:8px;font-size:14px;">Plus d'indices disponibles</div>
+        {% else %}
+          <form method="post">
+            <input type="hidden" name="action" value="hint">
+            <input type="hidden" name="level" value="{{ lvl }}">
+            <button class="btn ghost" style="font-size:12px;padding:9px 16px;">Demander</button>
+          </form>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- CORRECTION -->
+<div class="paper" style="max-width:760px;margin-top:34px;">
+  <span class="pin r"></span>
+  <h2 class="mt" style="margin-top:4px;">&#128274; Corrige de la mission</h2>
+  {% if correction_open %}
+    <div>{{ m['correction']|safe }}</div>
+  {% else %}
+    <p class="muted">Le corrige se debloque avec le <strong>flag de cette mission</strong> (le code à saisir est le flag lui-même).</p>
+    <form method="post">
+      <input type="hidden" name="action" value="correction">
+      <input name="code" placeholder="FLAG{...}" autocomplete="off" style="max-width:360px;">
+      <button class="btn ghost">Debloquer</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  var base={{ base }}, pph={{ pph }}, hintPts={{ hint_pts }}, bonus={{ bonus }},
+      flags={{ flags_count }}, started={{ started_ts }};
+  var el=document.getElementById('score');
+  function tick(){
+    var now=Date.now()/1000;
+    var h=(now-started)/3600;
+    var s=Math.round(base - h*pph - hintPts + bonus*flags);
+    if(s<0)s=0;
+    if(el)el.textContent=s;
+  }
+  tick(); setInterval(tick,1000);
+})();
+</script>
+{% endblock %}

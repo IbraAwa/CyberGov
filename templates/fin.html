@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block hud %}
+<a class="navlink" href="{{ url_for('classement') }}">Classement</a>
+<a class="navlink" href="{{ url_for('logout') }}">Deconnexion</a>
+{% endblock %}
+{% block content %}
+<div class="paper tilt center" style="max-width:640px;margin-top:50px;">
+  <span class="pin"></span>
+  <div class="stamp">Cloture</div>
+  <div class="eyebrow">Operation El Jefe</div>
+  <h1 class="title">Operation bouclee</h1>
+  <h2 class="mt" style="justify-content:center;">Bravo, agent {{ u['name'] }}</h2>
+  <p>Tu as valide <strong>{{ flags }}/{{ nb }}</strong> flags, en utilisant <strong>{{ hints_used }}</strong> indice(s).</p>
+  <div style="font-family:'Special Elite',monospace;font-size:54px;color:#7a5a10;margin:14px 0;">{{ score }}</div>
+  <div class="eyebrow">points</div>
+  <div class="divider"></div>
+  <a class="btn gold" href="{{ url_for('classement') }}">Voir le classement</a>
+  <div class="coffee" style="width:120px;height:120px;right:20px;bottom:0;"></div>
+</div>
+{% endblock %}

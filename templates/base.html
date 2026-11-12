@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · Operation El Jefe</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head><body>
+<div class="hud">
+  <div class="brand"><span class="star">&#9733;</span> Operation El&nbsp;Jefe<small>Cartel de Sinaloa &middot; dossier confidentiel</small></div>
+  <div class="hud-right">{% block hud %}{% endblock %}</div>
+</div>
+{% with messages = get_flashed_messages() %}
+  {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+{% endwith %}
+<div class="wrap">
+{% block content %}{% endblock %}
+</div>
+{% block scripts %}{% endblock %}
+</body></html>

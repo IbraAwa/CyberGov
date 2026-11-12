@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block hud %}
+<a class="navlink" href="{{ url_for('parcours') }}">Ma mission</a>
+<a class="navlink" href="{{ url_for('logout') }}">Deconnexion</a>
+{% endblock %}
+{% block content %}
+<div class="paper tilt">
+  <span class="tape tl"></span><span class="tape tr"></span>
+  <div class="eyebrow">Operation El Jefe</div>
+  <h1 class="title">Classement des cellules</h1>
+  <p class="muted">Score = 1600 &minus; temps (100 pts/h) &minus; indices + 75 par flag. A egalite, le premier a tout valider gagne.</p>
+  <table class="board">
+    <tr><th>#</th><th>Agent</th><th>Flags</th><th>Indices</th><th>Score</th></tr>
+    {% for d in data %}
+    <tr>
+      <td class="rank">{{ loop.index }}</td>
+      <td>{{ d['name'] }}{% if not d['started'] %} <span class="muted">(pas commence)</span>{% endif %}</td>
+      <td>{{ d['flags'] }}</td>
+      <td>{{ d['hints'] }}</td>
+      <td class="sc">{{ d['score'] }}</td>
+    </tr>
+    {% endfor %}
+    {% if not data %}<tr><td colspan="5" class="muted center">Aucun eleve inscrit.</td></tr>{% endif %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="paper tilt" style="max-width:520px;margin-top:60px;">
+  <span class="tape tl"></span><span class="tape tr"></span>
+  <div class="stamp">Confidentiel</div>
+  <div class="eyebrow">Acces reserve &middot; cellules 1 a 4</div>
+  <h1 class="title">Connexion</h1>
+  <h2 class="mt">Identifiez-vous, agent</h2>
+  {% with messages = get_flashed_messages() %}{% for msg in messages %}<div class="msg err">{{ msg }}</div>{% endfor %}{% endwith %}
+  <form method="post">
+    <label>Nom d'agent (prenom)</label>
+    <input name="name" autofocus autocomplete="off" style="width:100%;max-width:420px;">
+    <label>Code PIN</label>
+    <input name="pin" autocomplete="off" style="width:100%;max-width:420px;">
+    <div style="margin-top:22px;"><button class="btn big">Entrer</button></div>
+  </form>
+  <div class="coffee" style="width:120px;height:120px;right:10px;bottom:-30px;"></div>
+</div>
+<p class="center muted" style="margin-top:20px;font-family:'Special Elite',monospace;font-size:12px;">
+  Ton formateur te donne ton nom d'agent et ton code PIN.</p>
+{% endblock %}
