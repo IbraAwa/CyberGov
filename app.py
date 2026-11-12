@@ -215,6 +215,15 @@ def close_db(exc):
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
+    # --- migration : ancien modele "par eleve" -> modele "par agence" ---
+    def cols(table):
+        return [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
+    for t in ("hints", "completions"):
+        existing = cols(t)
+        if existing and "user_id" in existing and "agence_id" not in existing:
+            c.execute(f"DROP TABLE {t}")   # donnees de progression obsoletes : on repart propre
+
     c.executescript("""
     CREATE TABLE IF NOT EXISTS users(
       id INTEGER PRIMARY KEY, name TEXT UNIQUE, pin TEXT, role TEXT);
