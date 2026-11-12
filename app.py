@@ -408,17 +408,17 @@ START_BLOCK_M1 = """
 <h3>Pour demarrer</h3>
 <p>Un depot de depart est fourni dans votre langage : recuperez celui qui correspond, il contient le fichier a completer et le <span class="code">coffre.zip</span>.</p>
 <ul>
-<li>Python : <span class="code">https://github.com/IbraAwa/PinFinderExoPython</span></li>
-<li>Java : <span class="code">https://github.com/IbraAwa/PinFinderExoJava</span></li>
+<li>Python : <span class="code">git clone https://github.com/IbraAwa/PinFinderExoPython.git</span></li>
+<li>Java : <span class="code">git clone https://github.com/IbraAwa/PinFinderExoJava.git</span></li>
 </ul>
-<p>Telechargez le ZIP (bouton vert "Code" &rarr; "Download ZIP") ou clonez avec <span class="code">git clone</span>, puis lancez votre programme depuis le dossier qui contient <span class="code">coffre.zip</span>.</p>"""
+<p>Clonez le depot (pas de ZIP : on clone toujours avec <span class="code">git clone</span>), puis lancez votre programme depuis le dossier qui contient <span class="code">coffre.zip</span>.</p>"""
 
 START_BLOCK_M2 = """
 <h3>Pour demarrer : lancer l'intranet en local</h3>
 <p>L'intranet du cartel tourne sur votre propre machine. Le code est ici : <span class="code">https://github.com/IbraAwa/app</span></p>
 <ol>
-<li>Installez Python (python.org/downloads ; sur Windows, cochez "Add python.exe to PATH").</li>
-<li>Recuperez le code : bouton vert "Code" &rarr; "Download ZIP", ou <span class="code">git clone https://github.com/IbraAwa/app.git</span></li>
+<li>Installez Python (python.org/downloads ; sur Windows, cochez "Add python.exe to PATH") et Git (git-scm.com).</li>
+<li>Clonez le code (toujours cloner, pas de ZIP) : <span class="code">git clone https://github.com/IbraAwa/app.git</span></li>
 <li>Dans un terminal, placez-vous dans le dossier : <span class="code">cd app</span></li>
 <li>Installez les dependances : <span class="code">pip install -r requirements.txt</span></li>
 <li>Lancez le site : <span class="code">flask --app app run --port 8000</span></li>
