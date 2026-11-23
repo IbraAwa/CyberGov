@@ -63,11 +63,11 @@ flask --app app run --port 8000
 2. Sur Render : **New +  ->  Web Service**, connecte ce depot. Render lit `render.yaml`.
    - Build : `pip install -r requirements.txt`
    - Start : `gunicorn app:app`
-3. **Persistance (important).** Le `render.yaml` est regle sur le plan **free** : pas de
-   disque, la base SQLite est dans `/tmp` et elle est **remise a zero a chaque redemarrage,
-   redeploiement ou mise en veille** (apres ~15 min sans visite). Recree les sessions/agences
-   le jour meme et ouvre le site quelques minutes avant le cours. Pour garder les donnees,
-   passer en plan **starter** + disque monte sur `/var/data` (`DB_PATH=/var/data/labo.db`).
+3. **Persistance (important).** Le `render.yaml` est regle sur le plan **starter** (~7 $/mois
+   max, facture a la seconde, pas de mise en veille) avec un **disque** de 1 Go monte sur
+   `/var/data` (0,25 $/mois). La base SQLite y est stockee : comptes et scores survivent aux
+   redemarrages et redeploiements. (Le plan free n'a pas de disque : tout serait efface a
+   chaque mise en veille.)
 4. Variable `SECRET_KEY` : generee automatiquement par Render. Variable `PROF_PASSWORD` :
    demandee a la creation du Blueprint (a saisir toi-meme).
 5. Pour **activer/desactiver** entre les labos : sur Render tu peux **suspendre** le service

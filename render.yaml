@@ -2,14 +2,19 @@ services:
   - type: web
     name: operation-el-jefe
     runtime: python
-    plan: free               # gratuit : pas de disque, mise en veille apres ~15 min sans visite.
-                             # La base SQLite (dans /tmp) est remise a zero a chaque redemarrage.
+    plan: starter            # ~7 $/mois max, facture a la seconde. Pas de mise en veille.
+                             # Suspendre le service (Settings -> Suspend) arrete la facturation
+                             # du compute entre deux cours ; le disque garde les donnees.
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: SECRET_KEY
         generateValue: true
       - key: DB_PATH
-        value: /tmp/labo.db
+        value: /var/data/labo.db
       - key: PROF_PASSWORD
         sync: false          # saisi dans le dashboard Render, jamais dans le depot
+    disk:
+      name: labo-data
+      mountPath: /var/data
+      sizeGB: 1              # 0,25 $/Go/mois ; conserve comptes et scores meme service suspendu.
