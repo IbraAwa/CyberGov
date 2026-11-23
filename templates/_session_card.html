@@ -4,7 +4,7 @@
     <div class="sc-code">{{ s.row['code'] }}</div>
     <div class="sc-title">{{ s.row['title'] }}</div>
     {% if s.row['stacks'] %}<div class="sc-stacks">{{ s.row['stacks'] }}</div>{% endif %}
-    <div class="sc-meta">{{ s.nb_agences }}/4 agences &middot; {{ s.nb_eleves }} eleves</div>
+    <div class="sc-meta">{{ s.nb_agences }} agence{{ 's' if s.nb_agences != 1 }} &middot; {{ s.nb_eleves }} eleves</div>
     <span class="sc-go">Ouvrir &rarr;</span>
   </a>
 </div>

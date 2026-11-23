@@ -6,7 +6,7 @@
 <div class="paper" style="padding:22px 28px;">
   <div class="eyebrow">Espace reserve</div>
   <h1 class="title" style="font-size:28px;">Console professeur</h1>
-  <p class="muted">Une session = un cours dans une classe. Clique une session pour gerer ses agences (max {{ max_agences }}) et leurs eleves (max {{ max_eleves }}). C'est l'agence qui se connecte.</p>
+  <p class="muted">Une session = une formation donnee a une classe. Clique une session pour gerer ses agences (nombre libre : une agence peut etre une equipe ou un seul eleve) et leurs eleves (max {{ max_eleves }}). C'est l'agence qui se connecte.</p>
 </div>
 
 <!-- CREER UNE SESSION -->
@@ -15,8 +15,8 @@
   <form data-ajax-add data-target="#sessions-grid" data-prepend data-hide-empty="#sess-empty"
         method="post" action="{{ url_for('admin_session_create') }}">
     <div class="row">
-      <div style="flex:2;"><label>Intitule du cours</label><input type="text" name="title" placeholder="ex. Python - Data 2026" required></div>
-      <div><label>Code mnemonique</label><input type="text" name="code" value="{{ suggest_code }}" style="text-transform:uppercase;"></div>
+      <div style="flex:2;"><label>Nom de la formation</label><input type="text" name="title" placeholder="ex. Python - Data 2026" required></div>
+      <div><label>Code mnemonique de la formation</label><input type="text" name="code" value="{{ suggest_code }}" style="text-transform:uppercase;"></div>
       <div><label>Stack 1</label><input type="text" name="stack1" placeholder="ex. Java"></div>
       <div><label>Stack 2 (option)</label><input type="text" name="stack2" placeholder="ex. Angular"></div>
       <div style="flex:0;"><button class="btn">Creer</button></div>

@@ -26,15 +26,15 @@
 
 <!-- AGENCES -->
 <div class="admin-card">
-  <h3>Agences (<span class="gcount" data-grid="#agences-grid">{{ agences|length }}</span>/{{ max_agences }})</h3>
+  <h3>Agences (<span class="gcount" data-grid="#agences-grid">{{ agences|length }}</span>)</h3>
   <div class="board-wall">
     <div id="agences-grid" class="postit-grid">
       {% for a in agences %}{% set cidx = loop.index0 % 4 %}{% include "_agence_card.html" %}{% endfor %}
       <form class="add-postit"
-            data-ajax-add data-target="#agences-grid" data-max="{{ max_agences }}"
+            data-ajax-add data-target="#agences-grid"
             method="post" action="{{ url_for('admin_agence_create') }}">
         <input type="hidden" name="session_id" value="{{ sess['id'] }}">
-        <input type="text" name="name" placeholder="Nom de l'agence (ex. FBI)" required>
+        <input type="text" name="name" placeholder="Nom de l'agence ou de l'eleve (ex. FBI, Sarah)" required>
         <button class="btn ghost xs">+ Ajouter une agence</button>
       </form>
     </div>

@@ -6,8 +6,9 @@ uniquement pendant le labo**.
 
 ## Modele : sessions -> agences -> eleves
 
-- **Session** = un cours dans une classe : intitule, code mnemonique, 1-2 stacks, date auto.
-- Une session contient jusqu'a **4 agences**. **C'est l'agence qui a le compte** et qui joue.
+- **Session** = une formation donnee a une classe : nom de la formation, code mnemonique de la formation, 1-2 stacks, date auto.
+- Une session contient **autant d'agences que le prof veut** (pas de limite). **C'est l'agence qui a le compte** et qui joue.
+  Pour un cours a distance en individuel : une agence par eleve, nommee avec son prenom.
 - Chaque agence contient jusqu'a **5 eleves** : ce ne sont que des noms (pas de compte),
   pour savoir qui est dans quelle agence.
 - **Connexion d'une agence** = `code de la session` + `nom de l'agence` + `mot de passe`

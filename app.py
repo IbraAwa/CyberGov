@@ -13,7 +13,7 @@ HINT_LABELS = {"leger": "Indice leger", "moyen": "Indice moyen", "fort": "Indice
 MAX_HINTS = 6               # nombre total d'indices autorises
 FLAG_BONUS = 75             # chaque flag valide rapporte des points
 
-MAX_AGENCES = 4             # agences par session
+MAX_AGENCES = 0             # agences par session (0 = pas de limite, le prof gere)
 MAX_ELEVES = 5             # eleves par agence
 
 app = Flask(__name__)
@@ -903,7 +903,7 @@ def admin_session_create():
     stacks = ", ".join(stacks_list)
     if not title:
         if wants_json():
-            return jsonify(ok=False, error="Intitule requis."), 400
+            return jsonify(ok=False, error="Nom de la formation requis."), 400
         return redirect(url_for("admin"))
     s = None
     for _ in range(6):   # regenere la lettre en cas de collision
@@ -934,7 +934,7 @@ def admin_agence_create():
     sid = request.form.get("session_id")
     name = request.form.get("name", "").strip()
     n = db().execute("SELECT COUNT(*) c FROM agences WHERE session_id=?", (sid,)).fetchone()["c"]
-    if n >= MAX_AGENCES:
+    if MAX_AGENCES and n >= MAX_AGENCES:
         if wants_json():
             return jsonify(ok=False, error=f"Maximum {MAX_AGENCES} agences."), 400
         return redirect(url_for("session_detail", sid=sid))
