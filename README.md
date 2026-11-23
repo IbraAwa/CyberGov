@@ -15,8 +15,10 @@ uniquement pendant le labo**.
 
 ## Comptes professeur
 
-- Un compte professeur est cree au premier demarrage : **bstorm / CycyBerFormation2026**
-  (tu peux en ajouter d'autres dans la console -> section « Professeurs »).
+- Un compte professeur **bstorm** est cree au premier demarrage. Son mot de passe vient de la
+  variable d'environnement **`PROF_PASSWORD`** (a definir dans Render -> Environment ; jamais
+  dans le depot). En local sans variable : `dev-local-only`.
+  Tu peux ajouter d'autres profs dans la console -> section « Professeurs ».
 - Tous les profs voient et gerent toutes les sessions.
 
 ## Parcours
@@ -45,7 +47,7 @@ uniquement pendant le labo**.
 ```bash
 pip install -r requirements.txt
 flask --app app run --port 8000
-# http://127.0.0.1:8000  (login prof : bstorm / CycyBerFormation2026)
+# http://127.0.0.1:8000  (login prof : bstorm / dev-local-only, ou la valeur de PROF_PASSWORD)
 ```
 
 ## Deployer sur Render
@@ -60,11 +62,13 @@ flask --app app run --port 8000
 2. Sur Render : **New +  ->  Web Service**, connecte ce depot. Render lit `render.yaml`.
    - Build : `pip install -r requirements.txt`
    - Start : `gunicorn app:app`
-3. **Persistance (important).** Le `render.yaml` est regle sur le plan **starter** avec un
-   **disque** monte sur `/var/data` (SQLite y est stocke, les scores survivent aux
-   redemarrages). Sur le plan **free**, il n'y a pas de disque : les donnees sont remises a
-   zero a chaque redemarrage/veille — acceptable seulement pour un test.
-4. Variable `SECRET_KEY` : generee automatiquement par Render.
+3. **Persistance (important).** Le `render.yaml` est regle sur le plan **free** : pas de
+   disque, la base SQLite est dans `/tmp` et elle est **remise a zero a chaque redemarrage,
+   redeploiement ou mise en veille** (apres ~15 min sans visite). Recree les sessions/agences
+   le jour meme et ouvre le site quelques minutes avant le cours. Pour garder les donnees,
+   passer en plan **starter** + disque monte sur `/var/data` (`DB_PATH=/var/data/labo.db`).
+4. Variable `SECRET_KEY` : generee automatiquement par Render. Variable `PROF_PASSWORD` :
+   demandee a la creation du Blueprint (a saisir toi-meme).
 5. Pour **activer/desactiver** entre les labos : sur Render tu peux **suspendre** le service
    (Settings  ->  Suspend) et le reprendre le jour du labo.
 

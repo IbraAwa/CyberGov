@@ -552,8 +552,14 @@ def init_db():
         row = c.execute("SELECT briefing FROM missions WHERE num=?", (num,)).fetchone()
         if row and row[0] and marker not in row[0]:
             c.execute("UPDATE missions SET briefing=? WHERE num=?", (row[0] + block, num))
+    # compte prof par defaut : mot de passe lu dans la variable d'environnement PROF_PASSWORD
+    # (jamais ecrit dans le depot). Si la variable est definie, elle fait foi a chaque demarrage.
+    prof_pwd = os.environ.get("PROF_PASSWORD")
     if not c.execute("SELECT 1 FROM users WHERE role='prof'").fetchone():
-        c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)", ("bstorm", "CycyBerFormation2026", "prof"))
+        c.execute("INSERT INTO users(name,pin,role) VALUES(?,?,?)",
+                  ("bstorm", prof_pwd or "dev-local-only", "prof"))
+    elif prof_pwd:
+        c.execute("UPDATE users SET pin=? WHERE name='bstorm' AND role='prof'", (prof_pwd,))
     conn.commit(); conn.close()
 
 with app.app_context():
