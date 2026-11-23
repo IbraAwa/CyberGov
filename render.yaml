@@ -1,20 +1,28 @@
+databases:
+  - name: cybergov-db
+    plan: free               # Render Postgres gratuit. ATTENTION : expire 30 jours apres sa creation
+                             # (Render previent par e-mail). Recreer la base ou passer en payant avant.
+    region: oregon           # meme region que le site
+    databaseName: cybergov
+    user: cybergov
+    ipAllowList: []          # accessible uniquement depuis les services Render (pas depuis Internet)
+
 services:
   - type: web
     name: operation-el-jefe
     runtime: python
-    plan: starter            # ~7 $/mois max, facture a la seconde. Pas de mise en veille.
-                             # Suspendre le service (Settings -> Suspend) arrete la facturation
-                             # du compute entre deux cours ; le disque garde les donnees.
+    plan: free               # gratuit : mise en veille apres ~15 min sans visite (reveil ~1 min).
+                             # Les donnees ne sont PAS sur le serveur mais dans cybergov-db :
+                             # rien n'est perdu a la mise en veille ni aux redeploiements.
+    region: oregon
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app
     envVars:
       - key: SECRET_KEY
         generateValue: true
-      - key: DB_PATH
-        value: /var/data/labo.db
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cybergov-db
+          property: connectionString
       - key: PROF_PASSWORD
         sync: false          # saisi dans le dashboard Render, jamais dans le depot
-    disk:
-      name: labo-data
-      mountPath: /var/data
-      sizeGB: 1              # 0,25 $/Go/mois ; conserve comptes et scores meme service suspendu.

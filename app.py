@@ -486,10 +486,99 @@ MDP_WORDS = [
 # ============================================================
 #   BASE DE DONNEES
 # ============================================================
+# Deux moteurs possibles :
+#  - PostgreSQL si la variable DATABASE_URL est definie (prod Render : base externe Neon,
+#    les donnees survivent a la mise en veille / aux redeploiements du plan gratuit) ;
+#  - SQLite sinon (developpement local, fichier DB_PATH).
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+USE_PG = bool(DATABASE_URL)
+
+if USE_PG:
+    import re as _re
+    import psycopg
+    IntegrityError = psycopg.IntegrityError
+else:
+    IntegrityError = sqlite3.IntegrityError
+
+class _PgRow(dict):
+    """Ligne accessible par nom (row["col"]) ET par index (row[0]), comme sqlite3.Row."""
+    def __init__(self, cols, values):
+        super().__init__(zip(cols, values))
+        self._values = values
+    def __getitem__(self, k):
+        if isinstance(k, int):
+            return self._values[k]
+        return super().__getitem__(k)
+
+class _PgCursor:
+    def __init__(self, cur, lastrowid=None):
+        self._cur = cur
+        self.lastrowid = lastrowid
+        self._pending = None
+    def _wrap(self, r):
+        if r is None:
+            return None
+        return _PgRow([d.name for d in self._cur.description], list(r))
+    def fetchone(self):
+        if self._pending is not None:
+            r, self._pending = self._pending, None
+            return r
+        return self._wrap(self._cur.fetchone())
+    def fetchall(self):
+        rows = [self._wrap(r) for r in self._cur.fetchall()]
+        if self._pending is not None:
+            rows.insert(0, self._pending); self._pending = None
+        return rows
+
+# tables dont la cle primaire est une colonne "id" auto-incrementee
+_PG_ID_TABLES = {"users", "sessions", "agences", "eleves", "hints", "completions"}
+
+class _PgConn:
+    """Adaptateur minimal : meme API que sqlite3 (execute/commit/close, placeholders ?)."""
+    def __init__(self, url):
+        self._conn = psycopg.connect(url, connect_timeout=15)
+    def execute(self, sql, params=()):
+        q = sql.replace("?", "%s")
+        m = _re.match(r"\s*INSERT\s+INTO\s+(\w+)", q, _re.I)
+        want_id = bool(m and m.group(1).lower() in _PG_ID_TABLES and "RETURNING" not in q.upper())
+        if want_id:
+            q += " RETURNING id"
+        cur = self._conn.cursor()
+        try:
+            cur.execute(q, params)
+        except Exception:
+            self._conn.rollback()
+            raise
+        pc = _PgCursor(cur)
+        if want_id:
+            row = cur.fetchone()
+            pc.lastrowid = row[0] if row else None
+        return pc
+    def cursor(self):
+        return self
+    def executescript(self, script):
+        for stmt in script.split(";"):
+            if stmt.strip():
+                self.execute(stmt)
+    def commit(self):
+        self._conn.commit()
+    def rollback(self):
+        self._conn.rollback()
+    def close(self):
+        self._conn.close()
+
+def connect():
+    if USE_PG:
+        return _PgConn(DATABASE_URL)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 def db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH)
-        g.db.row_factory = sqlite3.Row
+        g.db = connect()
     return g.db
 
 @app.teardown_appcontext
@@ -499,18 +588,19 @@ def close_db(exc):
         d.close()
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect()
     c = conn.cursor()
 
-    # --- migration : ancien modele "par eleve" -> modele "par agence" ---
-    def cols(table):
-        return [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
-    for t in ("hints", "completions"):
-        existing = cols(t)
-        if existing and "user_id" in existing and "agence_id" not in existing:
-            c.execute(f"DROP TABLE {t}")   # donnees de progression obsoletes : on repart propre
+    # --- migration : ancien modele "par eleve" -> modele "par agence" (SQLite uniquement) ---
+    if not USE_PG:
+        def cols(table):
+            return [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
+        for t in ("hints", "completions"):
+            existing = cols(t)
+            if existing and "user_id" in existing and "agence_id" not in existing:
+                c.execute(f"DROP TABLE {t}")   # donnees de progression obsoletes : on repart propre
 
-    c.executescript("""
+    schema = """
     CREATE TABLE IF NOT EXISTS users(
       id INTEGER PRIMARY KEY, name TEXT UNIQUE, pin TEXT, role TEXT);
     CREATE TABLE IF NOT EXISTS sessions(
@@ -530,7 +620,11 @@ def init_db():
     CREATE TABLE IF NOT EXISTS completions(
       id INTEGER PRIMARY KEY, agence_id INTEGER, mission INTEGER, ts REAL);
     CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT);
-    """)
+    """
+    if USE_PG:
+        # PostgreSQL : id auto-incremente (SERIAL) et horodatages en double precision
+        schema = schema.replace("id INTEGER PRIMARY KEY", "id SERIAL PRIMARY KEY").replace(" REAL", " DOUBLE PRECISION")
+    c.executescript(schema)
     for m in MISSIONS_SEED:
         if not c.execute("SELECT 1 FROM missions WHERE num=?", (m["num"],)).fetchone():
             c.execute("""INSERT INTO missions(num,title,flag,briefing,hint_leger,hint_moyen,hint_fort,correction)
@@ -914,7 +1008,7 @@ def admin_session_create():
             db().commit()
             s = db().execute("SELECT * FROM sessions WHERE id=?", (cur.lastrowid,)).fetchone()
             break
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             continue
     if s is None:
         if wants_json():
@@ -947,7 +1041,7 @@ def admin_agence_create():
                            (sid, name, gen_password()))
         db().commit()
         ag = db().execute("SELECT * FROM agences WHERE id=?", (cur.lastrowid,)).fetchone()
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         if wants_json():
             return jsonify(ok=False, error=f"L'agence '{name}' existe deja."), 400
         flash(f"Une agence '{name}' existe deja dans cette session.")
@@ -1035,7 +1129,7 @@ def admin_prof_create():
             db().execute("INSERT INTO users(name,pin,role) VALUES(?,?,'prof')", (name, pin))
             db().commit()
             flash(f"Professeur cree : {name} / PIN {pin}")
-        except sqlite3.IntegrityError:
+        except IntegrityError:
             flash(f"Le nom '{name}' existe deja.")
     return redirect(url_for("admin"))
 

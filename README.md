@@ -63,11 +63,13 @@ flask --app app run --port 8000
 2. Sur Render : **New +  ->  Web Service**, connecte ce depot. Render lit `render.yaml`.
    - Build : `pip install -r requirements.txt`
    - Start : `gunicorn app:app`
-3. **Persistance (important).** Le `render.yaml` est regle sur le plan **starter** (~7 $/mois
-   max, facture a la seconde, pas de mise en veille) avec un **disque** de 1 Go monte sur
-   `/var/data` (0,25 $/mois). La base SQLite y est stockee : comptes et scores survivent aux
-   redemarrages et redeploiements. (Le plan free n'a pas de disque : tout serait efface a
-   chaque mise en veille.)
+3. **Persistance (important).** Plan **free** + base **Render Postgres gratuite**
+   (`cybergov-db`, creee par le `render.yaml`, branchee via `DATABASE_URL`). Le serveur gratuit
+   s'endort apres ~15 min sans visite et met ~1 min a se reveiller, mais les donnees restent
+   dans la base : rien n'est perdu a la mise en veille ni aux redeploiements.
+   **Attention : la base gratuite Render expire 30 jours apres sa creation.** Avant l'echeance :
+   la recreer (et ressaisir les donnees) ou la passer en plan payant.
+   Sans `DATABASE_URL` (en local), l'appli utilise un fichier SQLite (`labo.db`).
 4. Variable `SECRET_KEY` : generee automatiquement par Render. Variable `PROF_PASSWORD` :
    demandee a la creation du Blueprint (a saisir toi-meme).
 5. Pour **activer/desactiver** entre les labos : sur Render tu peux **suspendre** le service
